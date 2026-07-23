@@ -55,32 +55,39 @@ export default function Financial() {
   const totalIncome = records.filter(r => r.type === 'income' && r.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <header className="mb-8 flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">Financeiro</h2>
-          <p className="text-gray-500 mt-2">Controle de receitas e recebimentos</p>
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <header className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div className="flex justify-between items-center w-full sm:w-auto">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Financeiro</h2>
+            <p className="text-sm md:text-base text-gray-500 mt-1 md:mt-2">Controle de receitas e recebimentos</p>
+          </div>
+          <div className="sm:hidden">
+            <NotificationBell />
+          </div>
         </div>
-        <div className="flex items-center space-x-4">
-          <NotificationBell />
+        <div className="flex items-center space-x-3 md:space-x-4 w-full sm:w-auto">
+          <div className="hidden sm:block">
+            <NotificationBell />
+          </div>
           <button 
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center space-x-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl transition-colors font-medium"
+            className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-gray-900 hover:bg-gray-800 text-white px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors font-medium text-sm md:text-base"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 md:w-5 md:h-5" />
             <span>Novo Lançamento</span>
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-50 text-green-600 rounded-xl">
-             <ArrowUpCircle className="w-8 h-8" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center space-x-4">
+          <div className="p-2.5 md:p-3 bg-green-50 text-green-600 rounded-xl">
+             <ArrowUpCircle className="w-6 h-6 md:w-8 md:h-8" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500">Receitas Pagas</p>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-xs md:text-sm font-medium text-gray-500">Receitas Pagas</p>
+            <p className="text-xl md:text-2xl font-bold text-gray-900 truncate">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalIncome)}
             </p>
           </div>
@@ -88,8 +95,8 @@ export default function Financial() {
       </div>
 
       {showForm && (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 md:mb-8">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Paciente (Opcional)</label>
               <select className="w-full p-2.5 border border-gray-300 rounded-xl outline-none bg-white" value={formData.patient_id} onChange={e => setFormData({...formData, patient_id: e.target.value})}>
@@ -122,7 +129,7 @@ export default function Financial() {
                 <option value="pending">Pendente</option>
               </select>
             </div>
-            <div className="flex items-end">
+            <div className="sm:col-span-2 md:col-span-1 flex items-end mt-2 md:mt-0">
               <button type="submit" className="w-full bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors">
                 Salvar Lançamento
               </button>
@@ -133,18 +140,18 @@ export default function Financial() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse whitespace-nowrap min-w-[600px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="p-4 font-semibold text-gray-600 text-sm">Data</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Descrição</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Paciente</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Forma Pgto</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Valor</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Status</th>
+                <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Data</th>
+                <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Descrição</th>
+                <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Paciente</th>
+                <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Forma Pgto</th>
+                <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Valor</th>
+                <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50 text-sm">
+            <tbody className="divide-y divide-gray-50 text-xs md:text-sm">
               {records.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="p-4 text-gray-500">{r.date}</td>

@@ -50,34 +50,34 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <header className="mb-8 flex justify-between items-end">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <header className="mb-6 md:mb-8 flex justify-between items-center md:items-end">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Agenda de Hoje</h2>
-          <p className="text-gray-500 mt-2">{format(new Date(), 'dd/MM/yyyy')}</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Agenda de Hoje</h2>
+          <p className="text-sm md:text-base text-gray-500 mt-1 md:mt-2">{format(new Date(), 'dd/MM/yyyy')}</p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-4">
           <NotificationBell />
         </div>
       </header>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {appointments.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">Nenhum agendamento encontrado.</div>
+          <div className="p-8 md:p-12 text-center text-gray-500">Nenhum agendamento encontrado.</div>
         ) : (
           <ul className="divide-y divide-gray-50">
             {appointments.map((apt) => (
-              <li key={apt.id} className="p-6 hover:bg-gray-50/50 transition-colors flex items-center justify-between">
-                <div className="flex items-center space-x-6">
-                  <div className="flex flex-col items-center justify-center bg-blue-50 text-blue-700 rounded-xl w-16 h-16 font-semibold">
-                    <span className="text-xl">{apt.time.split(':')[0]}</span>
-                    <span className="text-xs opacity-80">{apt.time.split(':')[1]}</span>
+              <li key={apt.id} className="p-4 md:p-6 hover:bg-gray-50/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center space-x-4 md:space-x-6">
+                  <div className="shrink-0 flex flex-col items-center justify-center bg-blue-50 text-blue-700 rounded-xl w-14 h-14 md:w-16 md:h-16 font-semibold">
+                    <span className="text-lg md:text-xl">{apt.time.split(':')[0]}</span>
+                    <span className="text-[10px] md:text-xs opacity-80">{apt.time.split(':')[1]}</span>
                   </div>
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-900">{apt.patient_name}</h4>
-                    <p className="text-sm text-gray-500 mt-1">{apt.description}</p>
-                    <div className="flex items-center space-x-4 mt-2 text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-medium ${
+                    <h4 className="text-base md:text-lg font-semibold text-gray-900">{apt.patient_name}</h4>
+                    <p className="text-xs md:text-sm text-gray-500 mt-0.5 md:mt-1">{apt.description}</p>
+                    <div className="flex items-center space-x-4 mt-2 text-xs md:text-sm">
+                      <span className={`inline-flex items-center px-2 py-0.5 md:px-2.5 md:py-0.5 rounded-full font-medium ${
                         apt.status === 'Confirmado' ? 'bg-green-100 text-green-800' :
                         apt.status === 'Cancelado' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
@@ -88,7 +88,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 md:space-x-3 self-end sm:self-auto">
                     <a
                       href={getWhatsAppLink(apt.patient_phone || '', apt.patient_name, apt.time)}
                       target="_blank"
@@ -96,16 +96,16 @@ export default function Dashboard() {
                       className="p-2 text-green-600 bg-green-50 rounded-full hover:bg-green-100 transition-colors"
                       title="Enviar WhatsApp"
                     >
-                      <Phone className="w-5 h-5" />
+                      <Phone className="w-4 h-4 md:w-5 md:h-5" />
                     </a>
                     {apt.status !== 'Confirmado' && (
                       <button onClick={() => updateStatus(apt.id, 'Confirmado')} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors" title="Confirmar">
-                        <CheckCircle className="w-5 h-5" />
+                        <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                     )}
                     {apt.status !== 'Cancelado' && (
                       <button onClick={() => updateStatus(apt.id, 'Cancelado')} className="p-2 text-red-600 bg-red-50 rounded-full hover:bg-red-100 transition-colors" title="Cancelar">
-                        <XCircle className="w-5 h-5" />
+                        <XCircle className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                     )}
                 </div>

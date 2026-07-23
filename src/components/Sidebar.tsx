@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CircleDollarSign, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, CircleDollarSign, LogOut, X } from 'lucide-react';
 
-export default function Sidebar() {
+export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void }) {
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Agenda & Dashboard" },
     { to: "/patients", icon: Users, label: "Pacientes" },
@@ -10,15 +10,23 @@ export default function Sidebar() {
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
-      <div className="p-6 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-800 tracking-tight">Estética Pro</h1>
-        <p className="text-xs text-gray-500 mt-1">Gestão de Clínicas</p>
+      <div className="p-6 border-b border-gray-100 flex justify-between items-start">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800 tracking-tight">Estética Pro</h1>
+          <p className="text-xs text-gray-500 mt-1">Gestão de Clínicas</p>
+        </div>
+        {closeSidebar && (
+          <button onClick={closeSidebar} className="md:hidden p-1 -mt-1 -mr-2 text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={closeSidebar}
             className={({ isActive }) =>
               `flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors duration-200 ${
                 isActive
