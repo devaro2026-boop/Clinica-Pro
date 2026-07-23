@@ -5,10 +5,6 @@ import { createClient } from "@libsql/client";
 import multer from "multer";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Initialize DB Client
 const dbUrl = process.env.TURSO_URL || "libsql://appclinicas-devaro.aws-us-east-1.turso.io";
