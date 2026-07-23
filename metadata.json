@@ -1,0 +1,6 @@
+{
+  "name": "Estética Pro",
+  "description": "Sistema completo de gestão para clínicas de estética, incluindo prontuário digital, agendamento, termo de consentimento, financeiro e envio de mensagens por WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
