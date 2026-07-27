@@ -115,6 +115,40 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS catalog_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        unit_price REAL NOT NULL,
+        unit_type TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        patient_id INTEGER,
+        total_amount REAL NOT NULL,
+        status TEXT DEFAULT 'draft',
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS budget_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        budget_id INTEGER,
+        item_id INTEGER,
+        quantity REAL NOT NULL,
+        unit_price REAL NOT NULL,
+        total_price REAL NOT NULL
+    );
+  `);
   
   // Seed initial clinic if empty
   const rs = await db.execute("SELECT * FROM clinics");
@@ -146,7 +180,7 @@ async function startServer() {
   // Patients
   app.get("/api/patients", async (req, res) => {
     try {
-      const result = await db.execute("SELECT * FROM patients ORDER BY created_at DESC");
+      const result = await db.execute("SELECT * FROM patients ORDER BY created_at DESC LIMIT 100");
       res.json(result.rows);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -175,7 +209,7 @@ async function startServer() {
   // Appointments
   app.get("/api/appointments", async (req, res) => {
     try {
-      const result = await db.execute("SELECT a.*, p.name as patient_name, p.phone as patient_phone FROM appointments a JOIN patients p ON a.patient_id = p.id ORDER BY date, time");
+      const result = await db.execute("SELECT a.*, p.name as patient_name, p.phone as patient_phone FROM appointments a JOIN patients p ON a.patient_id = p.id ORDER BY date DESC, time DESC LIMIT 100");
       res.json(result.rows);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -205,7 +239,7 @@ async function startServer() {
   // Financial
   app.get("/api/financial", async (req, res) => {
     try {
-      const result = await db.execute("SELECT f.*, p.name as patient_name FROM financial f LEFT JOIN patients p ON f.patient_id = p.id ORDER BY date DESC");
+      const result = await db.execute("SELECT f.*, p.name as patient_name FROM financial f LEFT JOIN patients p ON f.patient_id = p.id ORDER BY date DESC LIMIT 100");
       res.json(result.rows);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -213,7 +247,7 @@ async function startServer() {
   app.get("/api/patients/:id/financial", async (req, res) => {
     try {
       const result = await db.execute({
-        sql: "SELECT * FROM financial WHERE patient_id = ? ORDER BY date DESC",
+        sql: "SELECT * FROM financial WHERE patient_id = ? ORDER BY date DESC LIMIT 100",
         args: [req.params.id]
       });
       res.json(result.rows);
@@ -352,6 +386,95 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Catalog
+  app.get("/api/catalog", async (req, res) => {
+    try {
+      const result = await db.execute("SELECT * FROM catalog_items ORDER BY name ASC");
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/catalog", async (req, res) => {
+    const { type, name, description, unit_price, unit_type } = req.body;
+    try {
+      const result = await db.execute({
+        sql: "INSERT INTO catalog_items (type, name, description, unit_price, unit_type) VALUES (?, ?, ?, ?, ?)",
+        args: [type, name, description, unit_price, unit_type]
+      });
+      res.json({ id: result.lastInsertRowid });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+  
+  app.put("/api/catalog/:id", async (req, res) => {
+    const { type, name, description, unit_price, unit_type } = req.body;
+    try {
+      await db.execute({
+        sql: "UPDATE catalog_items SET type = ?, name = ?, description = ?, unit_price = ?, unit_type = ? WHERE id = ?",
+        args: [type, name, description, unit_price, unit_type, req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/catalog/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM catalog_items WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Budgets
+  app.get("/api/patients/:id/budgets", async (req, res) => {
+    try {
+      const budgetsRes = await db.execute({
+        sql: "SELECT * FROM budgets WHERE patient_id = ? ORDER BY created_at DESC",
+        args: [req.params.id]
+      });
+      
+      const budgets = [];
+      for (const b of budgetsRes.rows) {
+        const itemsRes = await db.execute({
+           sql: "SELECT bi.*, c.name, c.type, c.unit_type FROM budget_items bi JOIN catalog_items c ON bi.item_id = c.id WHERE bi.budget_id = ?",
+           args: [b.id]
+        });
+        budgets.push({ ...b, items: itemsRes.rows });
+      }
+      res.json(budgets);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/patients/:id/budgets", async (req, res) => {
+    const { total_amount, notes, items } = req.body;
+    try {
+      const result = await db.execute({
+        sql: "INSERT INTO budgets (patient_id, total_amount, notes) VALUES (?, ?, ?)",
+        args: [req.params.id, total_amount, notes]
+      });
+      const budgetId = result.lastInsertRowid;
+      
+      for (const item of items) {
+        await db.execute({
+          sql: "INSERT INTO budget_items (budget_id, item_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)",
+          args: [budgetId, item.item_id, item.quantity, item.unit_price, item.total_price]
+        });
+      }
+      res.json({ id: budgetId });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/budgets/:id/status", async (req, res) => {
+    const { status } = req.body;
+    try {
+      await db.execute({
+        sql: "UPDATE budgets SET status = ? WHERE id = ?",
+        args: [status, req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

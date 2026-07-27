@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CircleDollarSign, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, Users, CircleDollarSign, LogOut, X, Package } from 'lucide-react';
 
 export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void }) {
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Agenda & Dashboard" },
     { to: "/patients", icon: Users, label: "Pacientes" },
+    { to: "/catalog", icon: Package, label: "Serviços e Produtos" },
     { to: "/financial", icon: CircleDollarSign, label: "Financeiro" },
   ];
 

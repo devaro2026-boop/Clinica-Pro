@@ -7,6 +7,7 @@ import { Patient, Photo, ConsentForm, Package } from '../types';
 import { User, Image as ImageIcon, FileText, PenTool, CreditCard, ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AnamnesisForm from '../components/AnamnesisForm';
+import BudgetsTab from '../components/BudgetsTab';
 
 export default function PatientDetails() {
   const { id } = useParams();
@@ -121,6 +122,7 @@ export default function PatientDetails() {
       <div className="flex space-x-1 md:space-x-2 border-b border-gray-200 mb-6 md:mb-8 overflow-x-auto scrollbar-hide">
         {[
           { id: 'prontuario', icon: FileText, label: 'Anamnese' },
+          { id: 'orcamentos', icon: CreditCard, label: 'Orçamentos' },
           { id: 'fotos', icon: ImageIcon, label: 'Galeria (Antes/Depois)' },
           { id: 'assinatura', icon: PenTool, label: 'Termos e Assinatura' },
           { id: 'pacotes', icon: CreditCard, label: 'Pacotes e Sessões' },
@@ -250,6 +252,10 @@ export default function PatientDetails() {
 
         {activeTab === 'prontuario' && (
           <AnamnesisForm patientId={id!} />
+        )}
+        
+        {activeTab === 'orcamentos' && (
+          <BudgetsTab patientId={id!} />
         )}
       </div>
     </div>

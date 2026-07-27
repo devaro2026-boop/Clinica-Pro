@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
 import PatientDetails from './pages/PatientDetails';
 import Financial from './pages/Financial';
+import Catalog from './pages/Catalog';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/patients" element={<Patients />} />
             <Route path="/patients/:id" element={<PatientDetails />} />
             <Route path="/financial" element={<Financial />} />
+            <Route path="/catalog" element={<Catalog />} />
           </Routes>
         </main>
       </div>

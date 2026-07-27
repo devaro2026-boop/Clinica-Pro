@@ -74,3 +74,36 @@ export interface Package {
   used_sessions: number;
   created_at: string;
 }
+
+export interface CatalogItem {
+  id: number;
+  type: 'service' | 'product';
+  name: string;
+  description: string;
+  unit_price: number;
+  unit_type: string; // 'unidade', 'ml', 'sessão'
+  created_at: string;
+}
+
+export interface BudgetItem {
+  id: number;
+  budget_id: number;
+  item_id: number;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  name?: string;
+  type?: string;
+  unit_type?: string;
+}
+
+export interface Budget {
+  id: number;
+  patient_id: number;
+  total_amount: number;
+  status: 'draft' | 'approved' | 'rejected';
+  notes: string;
+  created_at: string;
+  items?: BudgetItem[];
+}
+
