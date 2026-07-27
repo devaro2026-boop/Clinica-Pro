@@ -180,7 +180,7 @@ async function startServer() {
   // Patients
   app.get("/api/patients", async (req, res) => {
     try {
-      const result = await db.execute("SELECT * FROM patients ORDER BY created_at DESC LIMIT 100");
+      const result = await db.execute("SELECT * FROM patients ORDER BY created_at DESC LIMIT 10");
       res.json(result.rows);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -193,6 +193,27 @@ async function startServer() {
         args: [clinic_id || 1, name, phone, email, cpf, birth_date]
       });
       res.json({ id: result.lastInsertRowid });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/patients/:id", async (req, res) => {
+    const { name, phone, email, cpf, birth_date } = req.body;
+    try {
+      await db.execute({
+        sql: "UPDATE patients SET name = ?, phone = ?, email = ?, cpf = ?, birth_date = ? WHERE id = ?",
+        args: [name, phone, email, cpf, birth_date, req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/patients/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM patients WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -239,7 +260,7 @@ async function startServer() {
   // Financial
   app.get("/api/financial", async (req, res) => {
     try {
-      const result = await db.execute("SELECT f.*, p.name as patient_name FROM financial f LEFT JOIN patients p ON f.patient_id = p.id ORDER BY date DESC LIMIT 100");
+      const result = await db.execute("SELECT f.*, p.name as patient_name FROM financial f LEFT JOIN patients p ON f.patient_id = p.id ORDER BY date DESC LIMIT 10");
       res.json(result.rows);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -247,7 +268,7 @@ async function startServer() {
   app.get("/api/patients/:id/financial", async (req, res) => {
     try {
       const result = await db.execute({
-        sql: "SELECT * FROM financial WHERE patient_id = ? ORDER BY date DESC LIMIT 100",
+        sql: "SELECT * FROM financial WHERE patient_id = ? ORDER BY date DESC LIMIT 10",
         args: [req.params.id]
       });
       res.json(result.rows);
@@ -262,6 +283,27 @@ async function startServer() {
         args: [clinic_id || 1, patient_id, description, amount, type, payment_method, status, date]
       });
       res.json({ id: result.lastInsertRowid });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/financial/:id", async (req, res) => {
+    const { description, amount, type, payment_method, status, date } = req.body;
+    try {
+      await db.execute({
+        sql: "UPDATE financial SET description = ?, amount = ?, type = ?, payment_method = ?, status = ?, date = ? WHERE id = ?",
+        args: [description, amount, type, payment_method, status, date, req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/financial/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM financial WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   

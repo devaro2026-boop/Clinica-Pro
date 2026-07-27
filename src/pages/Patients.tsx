@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Patient } from '../types';
 import { Link } from 'react-router-dom';
-import { Plus, Search, User, Phone } from 'lucide-react';
+import { Plus, Search, User, Phone, Edit3, Trash2 } from 'lucide-react';
 import NotificationBell from '../components/NotificationBell';
 
 export default function Patients() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -28,14 +29,44 @@ export default function Patients() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/patients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...formData, clinic_id: 1 })
-    });
+    if (editingId) {
+      await fetch(`/api/patients/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+    } else {
+      await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, clinic_id: 1 })
+      });
+    }
     setShowForm(false);
+    setEditingId(null);
     setFormData({ name: '', phone: '', email: '', cpf: '', birth_date: '' });
     fetchPatients();
+  };
+
+  const handleEdit = (e: React.MouseEvent, p: Patient) => {
+    e.preventDefault();
+    setFormData({
+      name: p.name,
+      phone: p.phone,
+      email: p.email || '',
+      cpf: p.cpf || '',
+      birth_date: p.birth_date || ''
+    });
+    setEditingId(p.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
+    if (confirm('Tem certeza que deseja excluir este paciente?')) {
+      await fetch(`/api/patients/${id}`, { method: 'DELETE' });
+      fetchPatients();
+    }
   };
 
   return (
@@ -55,7 +86,13 @@ export default function Patients() {
             <NotificationBell />
           </div>
           <button 
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              setShowForm(!showForm);
+              if (showForm) {
+                setEditingId(null);
+                setFormData({ name: '', phone: '', email: '', cpf: '', birth_date: '' });
+              }
+            }}
             className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors font-medium text-sm md:text-base"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5" />
@@ -66,7 +103,7 @@ export default function Patients() {
 
       {showForm && (
         <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 md:mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Cadastrar Paciente</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">{editingId ? 'Editar Paciente' : 'Cadastrar Paciente'}</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
@@ -104,29 +141,44 @@ export default function Patients() {
             <input type="text" placeholder="Buscar pacientes..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
         </div>
-        <ul className="divide-y divide-gray-50">
-          {patients.map(p => (
-            <li key={p.id}>
-              <Link to={`/patients/${p.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50/50 transition-colors gap-3">
-                <div className="flex items-center space-x-3 md:space-x-4">
-                  <div className="shrink-0 w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
-                    <User className="w-5 h-5 md:w-6 md:h-6" />
+        <div className="max-h-[60vh] overflow-y-auto">
+          <ul className="divide-y divide-gray-50">
+            {patients.map(p => (
+              <li key={p.id}>
+                <Link to={`/patients/${p.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50/50 transition-colors gap-3">
+                  <div className="flex items-center space-x-3 md:space-x-4">
+                    <div className="shrink-0 w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
+                      <User className="w-5 h-5 md:w-6 md:h-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm md:text-base font-semibold text-gray-900 truncate">{p.name}</h4>
+                      <p className="text-xs md:text-sm text-gray-500 truncate">{p.email || 'Sem e-mail'} <span className="hidden sm:inline">•</span><span className="sm:hidden"><br/></span> {p.cpf || 'Sem CPF'}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="text-sm md:text-base font-semibold text-gray-900 truncate">{p.name}</h4>
-                    <p className="text-xs md:text-sm text-gray-500 truncate">{p.email || 'Sem e-mail'} <span className="hidden sm:inline">•</span><span className="sm:hidden"><br/></span> {p.cpf || 'Sem CPF'}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center text-xs md:text-sm text-gray-500">
+                      <div className="flex items-center space-x-1.5">
+                        <Phone className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        <span>{p.phone}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 pl-8 sm:pl-4 border-t border-gray-50 sm:border-t-0 pt-3 sm:pt-0">
+                      <button onClick={(e) => handleEdit(e, p)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Edit3 className="w-4 h-4 md:w-5 md:h-5" />
+                      </button>
+                      <button onClick={(e) => handleDelete(e, p.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center text-xs md:text-sm text-gray-500 sm:justify-end pl-13 sm:pl-0">
-                  <div className="flex items-center space-x-1.5">
-                    <Phone className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                    <span>{p.phone}</span>
-                  </div>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                </Link>
+              </li>
+            ))}
+            {patients.length === 0 && (
+              <li className="p-8 text-center text-gray-500">Nenhum paciente cadastrado.</li>
+            )}
+          </ul>
+        </div>
       </div>
     </div>
   );

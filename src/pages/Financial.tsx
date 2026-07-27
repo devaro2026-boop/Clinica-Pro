@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FinancialRecord, Patient } from '../types';
-import { Plus, ArrowDownCircle, ArrowUpCircle, Filter } from 'lucide-react';
+import { Plus, ArrowDownCircle, ArrowUpCircle, Filter, Edit3, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import NotificationBell from '../components/NotificationBell';
 
@@ -8,6 +8,7 @@ export default function Financial() {
   const [records, setRecords] = useState<FinancialRecord[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     patient_id: '',
@@ -34,13 +35,48 @@ export default function Financial() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/financial', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...formData, patient_id: Number(formData.patient_id) || null })
-    });
+    const payload = { ...formData, patient_id: Number(formData.patient_id) || null };
+    if (editingId) {
+      await fetch(`/api/financial/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      await fetch('/api/financial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
     setShowForm(false);
+    setEditingId(null);
+    setFormData({
+      patient_id: '', description: '', amount: '', type: 'income',
+      payment_method: 'Cartão de Crédito', status: 'paid', date: format(new Date(), 'yyyy-MM-dd')
+    });
     fetchData();
+  };
+
+  const handleEdit = (r: FinancialRecord) => {
+    setFormData({
+      patient_id: r.patient_id ? String(r.patient_id) : '',
+      description: r.description,
+      amount: String(r.amount),
+      type: r.type,
+      payment_method: r.payment_method,
+      status: r.status,
+      date: r.date
+    });
+    setEditingId(r.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (confirm('Tem certeza que deseja excluir este lançamento?')) {
+      await fetch(`/api/financial/${id}`, { method: 'DELETE' });
+      fetchData();
+    }
   };
 
   const updateStatus = async (id: number, status: string) => {
@@ -71,7 +107,16 @@ export default function Financial() {
             <NotificationBell />
           </div>
           <button 
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              setShowForm(!showForm);
+              if (showForm) {
+                setEditingId(null);
+                setFormData({
+                  patient_id: '', description: '', amount: '', type: 'income',
+                  payment_method: 'Cartão de Crédito', status: 'paid', date: format(new Date(), 'yyyy-MM-dd')
+                });
+              }
+            }}
             className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-gray-900 hover:bg-gray-800 text-white px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors font-medium text-sm md:text-base"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5" />
@@ -96,6 +141,7 @@ export default function Financial() {
 
       {showForm && (
         <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 md:mb-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">{editingId ? 'Editar Lançamento' : 'Cadastrar Lançamento'}</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Paciente (Opcional)</label>
@@ -139,16 +185,17 @@ export default function Financial() {
       )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap min-w-[600px]">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
+            <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm border-b border-gray-100">
+              <tr>
                 <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Data</th>
                 <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Descrição</th>
                 <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Paciente</th>
                 <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Forma Pgto</th>
                 <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Valor</th>
                 <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm">Status</th>
+                <th className="p-3 md:p-4 font-semibold text-gray-600 text-xs md:text-sm text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 text-xs md:text-sm">
@@ -176,11 +223,19 @@ export default function Financial() {
                       </button>
                     )}
                   </td>
+                  <td className="p-4 text-right flex justify-end space-x-2">
+                    <button onClick={() => handleEdit(r)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(r.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {records.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500">Nenhum lançamento encontrado.</td>
+                  <td colSpan={7} className="p-8 text-center text-gray-500">Nenhum lançamento encontrado.</td>
                 </tr>
               )}
             </tbody>
