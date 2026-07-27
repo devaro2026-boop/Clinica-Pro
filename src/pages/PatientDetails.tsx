@@ -6,6 +6,7 @@ import html2canvas from 'html2canvas';
 import { Patient, Photo, ConsentForm, Package } from '../types';
 import { User, Image as ImageIcon, FileText, PenTool, CreditCard, ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import AnamnesisForm from '../components/AnamnesisForm';
 
 export default function PatientDetails() {
   const { id } = useParams();
@@ -248,18 +249,7 @@ export default function PatientDetails() {
         )}
 
         {activeTab === 'prontuario' && (
-          <div>
-            <h3 className="text-lg md:text-xl font-bold mb-4 md:mb-6">Ficha de Anamnese</h3>
-            <textarea 
-              className="w-full h-48 md:h-64 p-3 md:p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none text-sm md:text-base"
-              placeholder="Digite o histórico clínico, alergias, tratamentos prévios..."
-            ></textarea>
-            <div className="mt-4 flex justify-end">
-              <button className="w-full sm:w-auto px-6 py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors text-sm md:text-base">
-                Salvar Anamnese
-              </button>
-            </div>
-          </div>
+          <AnamnesisForm patientId={id!} />
         )}
       </div>
     </div>
