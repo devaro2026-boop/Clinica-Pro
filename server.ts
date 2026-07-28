@@ -376,6 +376,17 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.delete("/api/photos/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM photos WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+
   // Anamnesis
   app.get("/api/patients/:id/anamnesis", async (req, res) => {
     try {

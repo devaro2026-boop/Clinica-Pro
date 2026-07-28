@@ -4,7 +4,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Patient, Photo, ConsentForm, Package } from '../types';
-import { User, Image as ImageIcon, FileText, PenTool, CreditCard, ChevronLeft, Camera, Upload } from 'lucide-react';
+import { User, Image as ImageIcon, FileText, PenTool, CreditCard, ChevronLeft, Camera, Upload, Trash2, Edit3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AnamnesisForm from '../components/AnamnesisForm';
 import BudgetsTab from '../components/BudgetsTab';
@@ -57,6 +57,22 @@ export default function PatientDetails() {
     });
     fetchPatientData();
   };
+
+  const handleDeletePhoto = async (photoId: number) => {
+    if (!confirm('Tem certeza que deseja excluir esta foto?')) return;
+    await fetch(`/api/photos/${photoId}`, { method: 'DELETE' });
+    fetchPatientData();
+  };
+
+  const handleReplacePhoto = async (e: React.ChangeEvent<HTMLInputElement>, type: 'before' | 'after', oldPhotoId: number) => {
+    if (!e.target.files?.[0]) return;
+    // First upload the new one
+    await handlePhotoUpload(e, type);
+    // Then delete the old one
+    await fetch(`/api/photos/${oldPhotoId}`, { method: 'DELETE' });
+    fetchPatientData();
+  };
+
 
   const saveConsentForm = async () => {
     if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
@@ -181,13 +197,35 @@ export default function PatientDetails() {
                <div className="space-y-4">
                   <h4 className="font-semibold text-gray-500 uppercase tracking-wider text-sm">Histórico "Antes"</h4>
                   {photos.filter(p => p.type === 'before').map(p => (
-                      <img key={p.id} src={p.url} className="w-full rounded-xl object-cover aspect-square shadow-sm" alt="Antes" />
+                      <div key={p.id} className="relative group">
+                          <img src={p.url} className="w-full rounded-xl object-cover aspect-square shadow-sm" alt="Antes" />
+                          <div className="absolute top-2 right-2 flex space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white/90 p-1.5 rounded-lg shadow-sm">
+                            <label className="cursor-pointer p-1 text-gray-600 hover:text-blue-600 rounded">
+                              <Edit3 className="w-4 h-4" />
+                              <input type="file" accept="image/*" className="hidden" onChange={e => handleReplacePhoto(e, 'before', p.id)} />
+                            </label>
+                            <button onClick={() => handleDeletePhoto(p.id)} className="p-1 text-gray-600 hover:text-red-600 rounded">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                      </div>
                   ))}
                </div>
                <div className="space-y-4">
                   <h4 className="font-semibold text-gray-500 uppercase tracking-wider text-sm">Histórico "Depois"</h4>
                   {photos.filter(p => p.type === 'after').map(p => (
-                      <img key={p.id} src={p.url} className="w-full rounded-xl object-cover aspect-square shadow-sm" alt="Depois" />
+                      <div key={p.id} className="relative group">
+                          <img src={p.url} className="w-full rounded-xl object-cover aspect-square shadow-sm" alt="Depois" />
+                          <div className="absolute top-2 right-2 flex space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white/90 p-1.5 rounded-lg shadow-sm">
+                            <label className="cursor-pointer p-1 text-gray-600 hover:text-blue-600 rounded">
+                              <Edit3 className="w-4 h-4" />
+                              <input type="file" accept="image/*" className="hidden" onChange={e => handleReplacePhoto(e, 'after', p.id)} />
+                            </label>
+                            <button onClick={() => handleDeletePhoto(p.id)} className="p-1 text-gray-600 hover:text-red-600 rounded">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                      </div>
                   ))}
                </div>
             </div>
