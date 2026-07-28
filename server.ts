@@ -149,6 +149,15 @@ async function initDb() {
         total_price REAL NOT NULL
     );
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS anamnesis (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        patient_id INTEGER,
+        content TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
   
   // Seed initial clinic if empty
   const rs = await db.execute("SELECT * FROM clinics");
@@ -224,6 +233,27 @@ async function startServer() {
         args: [req.params.id]
       });
       res.json(result.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/patients/:id/anamnesis", async (req, res) => {
+    try {
+      const result = await db.execute({
+        sql: "SELECT * FROM anamnesis WHERE patient_id = ? ORDER BY created_at DESC",
+        args: [req.params.id]
+      });
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/patients/:id/anamnesis", async (req, res) => {
+    const { content } = req.body;
+    try {
+      const result = await db.execute({
+        sql: "INSERT INTO anamnesis (patient_id, content) VALUES (?, ?)",
+        args: [req.params.id, content]
+      });
+      res.json({ id: result.lastInsertRowid });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

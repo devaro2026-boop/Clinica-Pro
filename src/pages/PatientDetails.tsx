@@ -4,7 +4,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Patient, Photo, ConsentForm, Package } from '../types';
-import { User, Image as ImageIcon, FileText, PenTool, CreditCard, ChevronLeft } from 'lucide-react';
+import { User, Image as ImageIcon, FileText, PenTool, CreditCard, ChevronLeft, Camera, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AnamnesisForm from '../components/AnamnesisForm';
 import BudgetsTab from '../components/BudgetsTab';
@@ -145,13 +145,35 @@ export default function PatientDetails() {
           <div>
             <h3 className="text-lg md:text-xl font-bold mb-4 md:mb-6">Comparação Antes e Depois</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8 mb-6 md:mb-8">
-              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 md:p-6 text-center">
-                <h4 className="font-semibold text-gray-700 mb-2 md:mb-4">Foto Antes</h4>
-                <input type="file" onChange={e => handlePhotoUpload(e, 'before')} className="block w-full text-xs md:text-sm text-gray-500 file:mr-2 md:file:mr-4 file:py-1.5 md:file:py-2 file:px-3 md:file:px-4 file:rounded-full file:border-0 file:text-xs md:file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 md:p-6 text-center flex flex-col items-center">
+                <h4 className="font-semibold text-gray-700 mb-4 md:mb-6">Foto Antes</h4>
+                <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+                  <label className="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs md:text-sm font-semibold py-2 px-4 rounded-full transition-colors flex items-center justify-center space-x-2">
+                    <Camera className="w-4 h-4" />
+                    <span>Tirar Foto</span>
+                    <input type="file" accept="image/*" capture="environment" onChange={e => handlePhotoUpload(e, 'before')} className="hidden" />
+                  </label>
+                  <label className="cursor-pointer bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs md:text-sm font-semibold py-2 px-4 rounded-full transition-colors flex items-center justify-center space-x-2">
+                    <Upload className="w-4 h-4" />
+                    <span>Escolher Arquivo</span>
+                    <input type="file" accept="image/*" onChange={e => handlePhotoUpload(e, 'before')} className="hidden" />
+                  </label>
+                </div>
               </div>
-              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 md:p-6 text-center">
-                <h4 className="font-semibold text-gray-700 mb-2 md:mb-4">Foto Depois</h4>
-                <input type="file" onChange={e => handlePhotoUpload(e, 'after')} className="block w-full text-xs md:text-sm text-gray-500 file:mr-2 md:file:mr-4 file:py-1.5 md:file:py-2 file:px-3 md:file:px-4 file:rounded-full file:border-0 file:text-xs md:file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 md:p-6 text-center flex flex-col items-center">
+                <h4 className="font-semibold text-gray-700 mb-4 md:mb-6">Foto Depois</h4>
+                <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+                  <label className="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs md:text-sm font-semibold py-2 px-4 rounded-full transition-colors flex items-center justify-center space-x-2">
+                    <Camera className="w-4 h-4" />
+                    <span>Tirar Foto</span>
+                    <input type="file" accept="image/*" capture="environment" onChange={e => handlePhotoUpload(e, 'after')} className="hidden" />
+                  </label>
+                  <label className="cursor-pointer bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs md:text-sm font-semibold py-2 px-4 rounded-full transition-colors flex items-center justify-center space-x-2">
+                    <Upload className="w-4 h-4" />
+                    <span>Escolher Arquivo</span>
+                    <input type="file" accept="image/*" onChange={e => handlePhotoUpload(e, 'after')} className="hidden" />
+                  </label>
+                </div>
               </div>
             </div>
             
