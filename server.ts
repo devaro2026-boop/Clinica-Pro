@@ -355,12 +355,20 @@ async function startServer() {
       return;
     }
     const { patient_id, type, date } = req.body;
-    const url = "/uploads/" + req.file.filename;
     
     try {
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const base64 = fileBuffer.toString('base64');
+      const mimeType = req.file.mimetype || 'image/jpeg';
+      const url = `data:${mimeType};base64,${base64}`;
+      
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (err) {}
+
       const result = await db.execute({
         sql: "INSERT INTO photos (patient_id, type, url, date) VALUES (?, ?, ?, ?)",
-        args: [patient_id, type, url, date]
+        args: [patient_id, type, url, date || new Date().toISOString()]
       });
       res.json({ id: result.lastInsertRowid, url });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
