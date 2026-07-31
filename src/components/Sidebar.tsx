@@ -14,12 +14,12 @@ export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void })
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
       <div className="p-6 border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-pink-100">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#cfbea5] via-[#ebdcd0] to-[#dfd3c3] flex items-center justify-center text-[#5c4f3c] font-black text-xl shadow-md shadow-amber-100/40">
             G
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight lowercase">gestto</h1>
-            <p className="text-[10px] uppercase font-semibold text-rose-500 tracking-wider">Estética & Salão</p>
+            <p className="text-[10px] uppercase font-bold text-[#a89070] tracking-wider">Estética & Salão</p>
           </div>
         </div>
         {closeSidebar && (
@@ -49,14 +49,14 @@ export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void })
       </nav>
       
       {/* Client Portal Link Box */}
-      <div className="p-4 mx-4 mb-4 bg-rose-50 border border-rose-100/50 rounded-2xl space-y-2">
-        <p className="text-[10px] uppercase font-bold text-rose-500 tracking-wider">Link do Portal do Cliente</p>
+      <div className="p-4 mx-4 mb-4 bg-[#fbf9f5] border border-[#ebdcd0] rounded-2xl space-y-2">
+        <p className="text-[10px] uppercase font-bold text-[#a89070] tracking-wider">Link do Portal do Cliente</p>
         <p className="text-[11px] text-gray-600 leading-normal">Seus clientes podem realizar agendamentos online por este link:</p>
         <a 
           href="/portal" 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="flex items-center justify-between text-xs font-bold text-rose-600 hover:text-rose-700 bg-white border border-rose-200 px-3 py-2 rounded-xl transition-all shadow-xs"
+          className="flex items-center justify-between text-xs font-bold text-[#968065] hover:text-[#7d674c] bg-white border border-[#ebdcd0] px-3 py-2 rounded-xl transition-all shadow-xs"
         >
           <span className="truncate">Acessar Portal</span>
           <Globe className="w-3.5 h-3.5 shrink-0" />

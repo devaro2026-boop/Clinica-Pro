@@ -271,7 +271,7 @@ export default function Dashboard() {
                     onClick={() => toggleWorkday(day.value)}
                     className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
                       isActive 
-                        ? 'bg-rose-500 text-white border-rose-500 shadow-xs' 
+                        ? 'bg-[#a38e74] text-white border-[#a38e74] shadow-xs' 
                         : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                     }`}
                   >

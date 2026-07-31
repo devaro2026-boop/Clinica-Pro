@@ -244,37 +244,37 @@ export default function ClientPortal() {
   // Render Login and Register views
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4 md:p-8 font-sans selection:bg-rose-100">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4 md:p-8 font-sans selection:bg-[#ebdcd0]">
         <div className="w-full max-w-5xl bg-white rounded-3xl overflow-hidden shadow-2xl border border-gray-100 grid grid-cols-1 lg:grid-cols-12 min-h-[600px] animate-fade-in">
           
           {/* Brand/Hero Panel */}
-          <div className="lg:col-span-5 bg-gradient-to-tr from-rose-400 via-pink-500 to-indigo-600 p-8 md:p-12 text-white flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl transform translate-x-12 -translate-y-12"></div>
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-rose-300/20 rounded-full blur-3xl transform -translate-x-12 translate-y-12"></div>
+          <div className="lg:col-span-5 bg-gradient-to-tr from-[#dfd3c3] via-[#f7f5f0] to-[#ebdcd0] p-8 md:p-12 text-[#4a3e31] flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/40 rounded-full blur-3xl transform translate-x-12 -translate-y-12"></div>
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#ebdcd0]/40 rounded-full blur-3xl transform -translate-x-12 translate-y-12"></div>
             
             <div className="relative z-10">
               <div className="flex items-center space-x-3 mb-8">
-                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white font-black text-xl border border-white/25">
+                <div className="w-10 h-10 rounded-2xl bg-white/60 backdrop-blur-md flex items-center justify-center text-[#5c4f3c] font-black text-xl border border-white/80 shadow-xs">
                   G
                 </div>
-                <span className="text-2xl font-black tracking-tight">gestto</span>
+                <span className="text-2xl font-black tracking-tight text-[#4a3e31]">gestto</span>
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
+              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight text-[#3a2f22]">
                 Seu momento de bem-estar começa aqui.
               </h2>
-              <p className="text-white/80 text-sm md:text-base mt-4 leading-relaxed font-medium">
+              <p className="text-[#5c4f3c] text-sm md:text-base mt-4 leading-relaxed font-semibold">
                 Acesse nossa plataforma exclusiva para agendar seus atendimentos, ver horários disponíveis em tempo real e cuidar de você de forma simples e rápida.
               </p>
             </div>
 
-            <div className="relative z-10 pt-12 border-t border-white/15 space-y-4">
+            <div className="relative z-10 pt-12 border-t border-[#4a3e31]/10 space-y-4">
               <div className="flex items-center space-x-3">
-                <ShieldCheck className="w-5 h-5 text-rose-300 shrink-0" />
-                <span className="text-xs font-semibold text-white/95">Ambiente seguro e privativo</span>
+                <ShieldCheck className="w-5 h-5 text-[#8c7457] shrink-0" />
+                <span className="text-xs font-bold text-[#4a3e31]/90">Ambiente seguro e privativo</span>
               </div>
               <div className="flex items-center space-x-3">
-                <Clock className="w-5 h-5 text-rose-300 shrink-0" />
-                <span className="text-xs font-semibold text-white/95">Confirmação de horário imediata</span>
+                <Clock className="w-5 h-5 text-[#8c7457] shrink-0" />
+                <span className="text-xs font-bold text-[#4a3e31]/90">Confirmação de horário imediata</span>
               </div>
             </div>
           </div>
@@ -285,7 +285,7 @@ export default function ClientPortal() {
               // Registration View
               <div className="space-y-6">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-rose-500">Cadastro de Novo Cliente</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#a38e74]">Cadastro de Novo Cliente</span>
                   <h3 className="text-2xl font-extrabold text-gray-900 mt-1">Crie sua Conta</h3>
                   <p className="text-xs text-gray-500 mt-1">Preencha seus dados para acessar o portal do cliente.</p>
                 </div>
@@ -306,7 +306,7 @@ export default function ClientPortal() {
                           type="text"
                           required
                           placeholder="Maria Silva"
-                          className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                          className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#c5b49f] focus:bg-white outline-none transition-all font-medium text-gray-800"
                           value={registerForm.name}
                           onChange={e => setRegisterForm({ ...registerForm, name: e.target.value })}
                         />
@@ -321,7 +321,7 @@ export default function ClientPortal() {
                           type="tel"
                           required
                           placeholder="(11) 99999-9999"
-                          className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                          className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#c5b49f] focus:bg-white outline-none transition-all font-medium text-gray-800"
                           value={registerForm.phone}
                           onChange={e => setRegisterForm({ ...registerForm, phone: e.target.value })}
                         />
@@ -335,7 +335,7 @@ export default function ClientPortal() {
                       <input
                         type="text"
                         placeholder="123.456.789-00"
-                        className="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                        className="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#c5b49f] focus:bg-white outline-none transition-all font-medium text-gray-800"
                         value={registerForm.cpf}
                         onChange={e => setRegisterForm({ ...registerForm, cpf: e.target.value })}
                       />
@@ -348,7 +348,7 @@ export default function ClientPortal() {
                         <input
                           type="email"
                           placeholder="maria@exemplo.com"
-                          className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                          className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#c5b49f] focus:bg-white outline-none transition-all font-medium text-gray-800"
                           value={registerForm.email}
                           onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
                         />
@@ -360,7 +360,7 @@ export default function ClientPortal() {
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Data de Nascimento (Opcional)</label>
                     <input
                       type="date"
-                      className="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                      className="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#c5b49f] focus:bg-white outline-none transition-all font-medium text-gray-800"
                       value={registerForm.birth_date}
                       onChange={e => setRegisterForm({ ...registerForm, birth_date: e.target.value })}
                     />
@@ -368,7 +368,7 @@ export default function ClientPortal() {
 
                   <button
                     type="submit"
-                    className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-rose-100 flex items-center justify-center space-x-2 text-sm"
+                    className="w-full bg-[#a38e74] hover:bg-[#8f7b62] text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-[#ebdcd0]/40 flex items-center justify-center space-x-2 text-sm"
                   >
                     <span>Concluir Cadastro e Entrar</span>
                     <ArrowRight className="w-4 h-4" />
@@ -380,7 +380,7 @@ export default function ClientPortal() {
                     Já possui cadastro?{' '}
                     <button
                       onClick={() => setIsRegistering(false)}
-                      className="text-rose-500 hover:text-rose-600 font-bold outline-none"
+                      className="text-[#a38e74] hover:text-[#8f7b62] font-bold outline-none"
                     >
                       Acesse sua conta
                     </button>
@@ -391,7 +391,7 @@ export default function ClientPortal() {
               // Login View
               <div className="space-y-6">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-rose-500">Acesso Restrito do Cliente</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#a38e74]">Acesso Restrito do Cliente</span>
                   <h3 className="text-2xl font-extrabold text-gray-900 mt-1">Bem-vindo de volta!</h3>
                   <p className="text-xs text-gray-500 mt-1">Informe seu celular ou CPF cadastrados para entrar no portal.</p>
                 </div>
@@ -410,7 +410,7 @@ export default function ClientPortal() {
                       <input
                         type="tel"
                         placeholder="(11) 99999-9999"
-                        className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                        className="w-full text-sm pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#c5b49f] focus:bg-white outline-none transition-all font-medium text-gray-800"
                         value={authForm.phone}
                         onChange={e => setAuthForm({ ...authForm, phone: e.target.value })}
                       />
@@ -427,7 +427,7 @@ export default function ClientPortal() {
                     <input
                       type="text"
                       placeholder="000.000.000-00"
-                      className="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-gray-800"
+                      className="w-full text-sm px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#c5b49f] focus:bg-white outline-none transition-all font-medium text-gray-800"
                       value={authForm.cpf}
                       onChange={e => setAuthForm({ ...authForm, cpf: e.target.value })}
                     />
@@ -435,7 +435,7 @@ export default function ClientPortal() {
 
                   <button
                     type="submit"
-                    className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-rose-100 flex items-center justify-center space-x-2 text-sm"
+                    className="w-full bg-[#a38e74] hover:bg-[#8f7b62] text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-[#ebdcd0]/40 flex items-center justify-center space-x-2 text-sm"
                   >
                     <span>Entrar no Portal</span>
                     <ArrowRight className="w-4 h-4" />
@@ -447,7 +447,7 @@ export default function ClientPortal() {
                     Não tem uma conta?{' '}
                     <button
                       onClick={() => setIsRegistering(true)}
-                      className="text-rose-500 hover:text-rose-600 font-bold outline-none"
+                      className="text-[#a38e74] hover:text-[#8f7b62] font-bold outline-none"
                     >
                       Cadastre-se grátis
                     </button>
@@ -463,17 +463,17 @@ export default function ClientPortal() {
 
   // Logged In Dashboard View
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-rose-100">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-[#ebdcd0]">
       
       {/* Top Navigation Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-400 to-pink-500 flex items-center justify-center text-white font-black text-lg">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#cfbea5] via-[#ebdcd0] to-[#dfd3c3] flex items-center justify-center text-[#5c4f3c] font-black text-lg shadow-sm shadow-amber-100/30">
               G
             </div>
             <span className="text-lg font-black tracking-tight text-gray-950 lowercase">gestto</span>
-            <span className="text-[10px] uppercase font-bold text-rose-500 tracking-wider bg-rose-50 px-2 py-0.5 rounded-lg">Portal do Cliente</span>
+            <span className="text-[10px] uppercase font-bold text-[#a38e74] tracking-wider bg-[#fbf9f5] border border-[#ebdcd0]/50 px-2 py-0.5 rounded-lg">Portal do Cliente</span>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -486,7 +486,7 @@ export default function ClientPortal() {
               >
                 <Bell className="w-5.5 h-5.5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 border-2 border-white rounded-full flex items-center justify-center text-[8px] font-black text-white">
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-[#a38e74] border-2 border-white rounded-full flex items-center justify-center text-[8px] font-black text-white">
                     {unreadCount}
                   </span>
                 )}
@@ -500,7 +500,7 @@ export default function ClientPortal() {
                     {unreadCount > 0 && (
                       <button 
                         onClick={markAllNotificationsRead}
-                        className="text-[10px] text-rose-500 hover:text-rose-600 font-bold"
+                        className="text-[10px] text-[#a38e74] hover:text-[#8f7b62] font-bold"
                       >
                         Marcar todas como lidas
                       </button>
@@ -512,12 +512,12 @@ export default function ClientPortal() {
                       <div 
                         key={notif.id} 
                         onClick={() => notif.is_read === 0 && markNotificationRead(notif.id)}
-                        className={`p-3 text-left transition-colors cursor-pointer ${notif.is_read === 0 ? 'bg-rose-50/40 hover:bg-rose-50' : 'hover:bg-gray-50'}`}
+                        className={`p-3 text-left transition-colors cursor-pointer ${notif.is_read === 0 ? 'bg-[#fbf9f5]/50 hover:bg-[#fbf9f5]' : 'hover:bg-gray-50'}`}
                       >
                         <div className="flex justify-between items-start">
                           <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                             {notif.title}
-                            {notif.is_read === 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>}
+                            {notif.is_read === 0 && <span className="w-1.5 h-1.5 bg-[#a38e74] rounded-full"></span>}
                           </h4>
                           <span className="text-[9px] text-gray-400">
                             {format(parseISO(notif.created_at), 'dd/MM HH:mm')}
@@ -538,7 +538,7 @@ export default function ClientPortal() {
 
             {/* User details & logout */}
             <div className="hidden sm:flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-sm">
+              <div className="w-8 h-8 rounded-full bg-[#f4efe8] text-[#968065] border border-[#ebdcd0]/60 flex items-center justify-center font-bold text-sm">
                 {currentUser.name[0].toUpperCase()}
               </div>
               <div className="text-left">
@@ -562,21 +562,21 @@ export default function ClientPortal() {
       <main className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
         
         {/* Welcome Section */}
-        <section className="bg-gradient-to-tr from-rose-500 to-pink-600 p-6 md:p-8 rounded-3xl text-white shadow-xl shadow-rose-100/50 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-2xl translate-x-12 -translate-y-12"></div>
+        <section className="bg-gradient-to-tr from-[#cfbea5] via-[#f7f5f0] to-[#dfd3c3] p-6 md:p-8 rounded-3xl text-[#4a3e31] shadow-xl shadow-amber-100/30 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden border border-[#ebdcd0]">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-white/40 rounded-full blur-2xl translate-x-12 -translate-y-12"></div>
           <div className="relative z-10 space-y-2">
-            <div className="flex items-center space-x-2 bg-white/15 backdrop-blur-md px-3 py-1 rounded-full w-fit">
-              <Sparkles className="w-3.5 h-3.5 text-rose-200" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-100">Área Exclusiva</span>
+            <div className="flex items-center space-x-2 bg-[#4a3e31]/5 backdrop-blur-md px-3 py-1 rounded-full w-fit border border-[#4a3e31]/10">
+              <Sparkles className="w-3.5 h-3.5 text-[#8c7457]" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#5c4f3c]">Área Exclusiva</span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Olá, {currentUser.name}!</h2>
-            <p className="text-rose-100/80 text-xs md:text-sm font-medium leading-relaxed max-w-xl">
+            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#3a2f22]">Olá, {currentUser.name}!</h2>
+            <p className="text-[#5c4f3c]/90 text-xs md:text-sm font-semibold leading-relaxed max-w-xl">
               Bem-vindo ao seu portal personalizado. Agende novos serviços com facilidade e confira as novidades e horários disponíveis definidos especialmente para você.
             </p>
           </div>
           <div className="shrink-0 flex items-center space-x-2.5 z-10">
-            <div className="p-3 bg-white/15 backdrop-blur-md rounded-2xl border border-white/10 text-center text-white">
-              <p className="text-[10px] font-bold text-rose-100 uppercase tracking-wider">Agendamentos</p>
+            <div className="p-3 bg-[#4a3e31]/5 backdrop-blur-md rounded-2xl border border-[#4a3e31]/10 text-center text-[#4a3e31]">
+              <p className="text-[10px] font-bold text-[#8c7457] uppercase tracking-wider">Agendamentos</p>
               <p className="text-2xl font-black mt-0.5">{appointments.length}</p>
             </div>
           </div>
@@ -605,7 +605,7 @@ export default function ClientPortal() {
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs">
               <div className="flex items-center space-x-2 pb-4 border-b border-gray-100 mb-6">
-                <Sparkles className="w-5 h-5 text-rose-500" />
+                <Sparkles className="w-5 h-5 text-[#a38e74]" />
                 <h3 className="font-bold text-gray-900">Novo Agendamento Online</h3>
               </div>
 
@@ -619,7 +619,7 @@ export default function ClientPortal() {
                       <div
                         key={s.id}
                         onClick={() => setSelectedService(s)}
-                        className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between h-28 text-left ${selectedService?.id === s.id ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-500/10' : 'border-gray-200 hover:border-gray-300'}`}
+                        className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between h-28 text-left ${selectedService?.id === s.id ? 'border-[#a38e74] bg-[#fdfcf7] ring-2 ring-[#a38e74]/10' : 'border-gray-200 hover:border-gray-300'}`}
                       >
                         <div>
                           <h4 className="text-xs font-bold text-gray-900 line-clamp-1">{s.name}</h4>
@@ -629,7 +629,7 @@ export default function ClientPortal() {
                           <span className="text-xs font-bold text-gray-950">
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.unit_price)}
                           </span>
-                          <span className="text-[9px] font-semibold text-rose-500 uppercase tracking-wide">{s.unit_type}</span>
+                          <span className="text-[9px] font-semibold text-[#a38e74] uppercase tracking-wide">{s.unit_type}</span>
                         </div>
                       </div>
                     ))}
@@ -667,7 +667,7 @@ export default function ClientPortal() {
                         O estabelecimento está fechado nesta data. Por favor, escolha outro dia!
                       </div>
                     ) : availableSlots.length === 0 ? (
-                      <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700">
+                      <div className="p-3 bg-[#fbf9f5] border border-[#ebdcd0]/60 rounded-xl text-xs text-[#8c7457]">
                         Não existem horários de atendimento vagos para este dia. Escolha outra data.
                       </div>
                     ) : (
@@ -677,7 +677,7 @@ export default function ClientPortal() {
                             key={slot}
                             type="button"
                             onClick={() => setSelectedSlot(slot)}
-                            className={`p-2 rounded-lg text-xs font-extrabold transition-all border ${selectedSlot === slot ? 'bg-rose-500 text-white border-rose-500 shadow-sm' : 'bg-gray-50 text-gray-800 hover:bg-gray-100 border-gray-200'}`}
+                            className={`p-2 rounded-lg text-xs font-extrabold transition-all border ${selectedSlot === slot ? 'bg-[#a38e74] text-white border-[#a38e74] shadow-sm' : 'bg-gray-50 text-gray-800 hover:bg-gray-100 border-gray-200'}`}
                           >
                             {slot}
                           </button>
@@ -692,7 +692,7 @@ export default function ClientPortal() {
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Comentários ou Observações (Opcional)</label>
                   <textarea
                     placeholder="Algum detalhe ou preferência que queira nos contar..."
-                    className="w-full text-xs p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-rose-400 focus:bg-white transition-all font-medium text-gray-800 h-20 resize-none"
+                    className="w-full text-xs p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#c5b49f] focus:bg-white transition-all font-medium text-gray-800 h-20 resize-none"
                     value={bookingNote}
                     onChange={e => setBookingNote(e.target.value)}
                   />
@@ -702,7 +702,7 @@ export default function ClientPortal() {
                 <button
                   type="submit"
                   disabled={!selectedService || !selectedDate || !selectedSlot}
-                  className="w-full bg-rose-500 hover:bg-rose-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all shadow-md shadow-rose-100 flex items-center justify-center space-x-2 text-sm"
+                  className="w-full bg-[#a38e74] hover:bg-[#8f7b62] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all shadow-md shadow-stone-200/50 flex items-center justify-center space-x-2 text-sm"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Confirmar meu Agendamento</span>
@@ -743,9 +743,9 @@ export default function ClientPortal() {
                       
                       {/* Alert notice in item itself if near */}
                       {isUpcoming && appt.status === 'Scheduled' && (
-                        <div className="bg-rose-50 p-2.5 rounded-lg border border-rose-100 flex items-start space-x-2">
-                          <Bell className="w-3.5 h-3.5 text-rose-500 mt-0.5 shrink-0" />
-                          <p className="text-[10px] text-rose-800 leading-relaxed font-semibold">
+                        <div className="bg-[#fbf9f5] p-2.5 rounded-lg border border-[#ebdcd0]/60 flex items-start space-x-2">
+                          <Bell className="w-3.5 h-3.5 text-[#a38e74] mt-0.5 shrink-0" />
+                          <p className="text-[10px] text-[#5c4f3c] leading-relaxed font-semibold">
                             Fique atento! Seu atendimento está agendado e confirmado para o dia {day}/{month}/{year} às {appt.time}.
                           </p>
                         </div>
@@ -767,11 +767,11 @@ export default function ClientPortal() {
               <h4 className="font-bold text-sm">Informações de Contato</h4>
               <div className="space-y-3 text-xs text-gray-300">
                 <div className="flex items-center space-x-2.5">
-                  <MapPin className="w-4 h-4 text-rose-400 shrink-0" />
+                  <MapPin className="w-4 h-4 text-[#ebdcd0] shrink-0" />
                   <span>Av. Principal de Estética & Beleza, 1200 - Centro</span>
                 </div>
                 <div className="flex items-center space-x-2.5">
-                  <Phone className="w-4 h-4 text-rose-400 shrink-0" />
+                  <Phone className="w-4 h-4 text-[#ebdcd0] shrink-0" />
                   <span>(11) 98888-7777 / (11) 3333-2222</span>
                 </div>
               </div>
