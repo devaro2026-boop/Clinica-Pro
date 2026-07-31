@@ -74,8 +74,8 @@ export default function Patients() {
       <header className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div className="flex justify-between items-center w-full sm:w-auto">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Pacientes</h2>
-            <p className="text-sm md:text-base text-gray-500 mt-1 md:mt-2">Gestão de prontuários e histórico</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Clientes & Pacientes</h2>
+            <p className="text-sm md:text-base text-gray-500 mt-1 md:mt-2">Gestão de cadastros, prontuários e histórico</p>
           </div>
           <div className="sm:hidden">
             <NotificationBell />
@@ -96,7 +96,7 @@ export default function Patients() {
             className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors font-medium text-sm md:text-base"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5" />
-            <span>Novo Paciente</span>
+            <span>Novo Cliente</span>
           </button>
         </div>
       </header>

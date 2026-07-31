@@ -4,17 +4,17 @@ import { LayoutDashboard, Users, CircleDollarSign, LogOut, X, Package } from 'lu
 export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void }) {
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Agenda & Dashboard" },
-    { to: "/patients", icon: Users, label: "Pacientes" },
+    { to: "/patients", icon: Users, label: "Clientes & Pacientes" },
     { to: "/catalog", icon: Package, label: "Serviços e Produtos" },
-    { to: "/financial", icon: CircleDollarSign, label: "Financeiro" },
+    { to: "/financial", icon: CircleDollarSign, label: "Financeiro & Caixa" },
   ];
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
       <div className="p-6 border-b border-gray-100 flex justify-between items-start">
         <div>
-          <h1 className="text-xl font-bold text-gray-800 tracking-tight">Estética Pro</h1>
-          <p className="text-xs text-gray-500 mt-1">Gestão de Clínicas</p>
+          <h1 className="text-xl font-bold text-gray-800 tracking-tight">Estética & Salão Pro</h1>
+          <p className="text-xs text-gray-500 mt-1">Clínica & Salão de Beleza</p>
         </div>
         {closeSidebar && (
           <button onClick={closeSidebar} className="md:hidden p-1 -mt-1 -mr-2 text-gray-400 hover:text-gray-600">

@@ -567,6 +567,43 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Backup & Restore
+  app.get("/api/backup", async (req, res) => {
+    try {
+      const tables = ['clinics', 'patients', 'appointments', 'financial', 'packages', 'catalog_items', 'budgets', 'budget_items', 'anamnesis', 'photos'];
+      const data: Record<string, any[]> = {};
+      for (const t of tables) {
+        const result = await db.execute(`SELECT * FROM ${t}`);
+        data[t] = result.rows;
+      }
+      res.json({ version: 1, timestamp: new Date().toISOString(), data });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/restore", async (req, res) => {
+    const { data } = req.body;
+    if (!data) return res.status(400).json({ error: "Invalid backup data" });
+    try {
+      const tables = ['budget_items', 'budgets', 'photos', 'anamnesis', 'financial', 'packages', 'appointments', 'patients', 'catalog_items', 'clinics'];
+      for (const t of tables) {
+        await db.execute(`DELETE FROM ${t}`);
+      }
+
+      for (const t of Object.keys(data)) {
+        const rows = data[t];
+        if (!Array.isArray(rows) || rows.length === 0) continue;
+        for (const row of rows) {
+          const keys = Object.keys(row);
+          const placeholders = keys.map(() => '?').join(', ');
+          const values = keys.map(k => row[k]);
+          const sql = `INSERT INTO ${t} (${keys.join(', ')}) VALUES (${placeholders})`;
+          await db.execute({ sql, args: values });
+        }
+      }
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
