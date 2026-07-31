@@ -158,11 +158,43 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    );
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS client_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        patient_id INTEGER,
+        title TEXT,
+        message TEXT,
+        is_read INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
   
   // Seed initial clinic if empty
   const rs = await db.execute("SELECT * FROM clinics");
   if (rs.rows.length === 0) {
     await db.execute("INSERT INTO clinics (name) VALUES ('Clínica Principal')");
+  }
+
+  // Seed default business hours settings
+  const checkSettings = await db.execute("SELECT * FROM settings WHERE key = 'schedule_hours'");
+  if (checkSettings.rows.length === 0) {
+    await db.execute({
+      sql: "INSERT INTO settings (key, value) VALUES (?, ?)",
+      args: ['schedule_hours', JSON.stringify({
+        start: '08:00',
+        end: '18:00',
+        interval: 30,
+        workdays: [1, 2, 3, 4, 5] // Monday-Friday
+      })]
+    });
   }
 }
 
@@ -567,10 +599,218 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Settings & Schedule Configurations
+  app.get("/api/settings/:key", async (req, res) => {
+    try {
+      const result = await db.execute({
+        sql: "SELECT value FROM settings WHERE key = ?",
+        args: [req.params.key]
+      });
+      if (result.rows.length === 0) {
+        return res.json(null);
+      }
+      res.json(JSON.parse(result.rows[0].value as string));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/settings/:key", async (req, res) => {
+    try {
+      const valueStr = JSON.stringify(req.body);
+      await db.execute({
+        sql: "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+        args: [req.params.key, valueStr]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Client Portal Auth & Registration
+  app.post("/api/portal/auth", async (req, res) => {
+    const { phone, cpf } = req.body;
+    try {
+      let result;
+      if (phone && cpf) {
+        result = await db.execute({
+          sql: "SELECT * FROM patients WHERE phone = ? OR cpf = ? LIMIT 1",
+          args: [phone, cpf]
+        });
+      } else if (phone) {
+        result = await db.execute({
+          sql: "SELECT * FROM patients WHERE phone = ? LIMIT 1",
+          args: [phone]
+        });
+      } else if (cpf) {
+        result = await db.execute({
+          sql: "SELECT * FROM patients WHERE cpf = ? LIMIT 1",
+          args: [cpf]
+        });
+      } else {
+        return res.status(400).json({ error: "Informe o telefone ou CPF para entrar." });
+      }
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Cliente não cadastrado. Por favor, cadastre-se primeiro!" });
+      }
+      res.json(result.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/portal/register", async (req, res) => {
+    const { name, phone, email, cpf, birth_date } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: "Nome e Telefone são obrigatórios." });
+    }
+    try {
+      // Check if phone or CPF already exists
+      const check = await db.execute({
+        sql: "SELECT * FROM patients WHERE phone = ? OR (cpf IS NOT NULL AND cpf != '' AND cpf = ?)",
+        args: [phone, cpf || '']
+      });
+      if (check.rows.length > 0) {
+        return res.status(400).json({ error: "Um cliente com este telefone ou CPF já está cadastrado." });
+      }
+
+      const result = await db.execute({
+        sql: "INSERT INTO patients (clinic_id, name, phone, email, cpf, birth_date) VALUES (?, ?, ?, ?, ?, ?)",
+        args: [1, name, phone, email || '', cpf || '', birth_date || '']
+      });
+      
+      const newId = result.lastInsertRowid;
+      const newPatient = await db.execute({
+        sql: "SELECT * FROM patients WHERE id = ?",
+        args: [newId]
+      });
+
+      // Create welcome notification
+      await db.execute({
+        sql: "INSERT INTO client_notifications (patient_id, title, message) VALUES (?, ?, ?)",
+        args: [newId, "Bem-vindo!", `Olá ${name}! Seja bem-vindo ao portal do cliente do Gestto. Aqui você pode realizar agendamentos online e acompanhar seu histórico.`]
+      });
+
+      res.json(newPatient.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Patient Appointments for Portal
+  app.get("/api/portal/patients/:id/appointments", async (req, res) => {
+    try {
+      const result = await db.execute({
+        sql: "SELECT * FROM appointments WHERE patient_id = ? ORDER BY date DESC, time DESC",
+        args: [req.params.id]
+      });
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Available Slots calculation
+  app.get("/api/portal/available-slots", async (req, res) => {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: "Date is required" });
+    try {
+      const configRes = await db.execute("SELECT value FROM settings WHERE key = 'schedule_hours'");
+      let config = { start: '08:00', end: '18:00', interval: 30, workdays: [1, 2, 3, 4, 5] };
+      if (configRes.rows.length > 0) {
+        config = JSON.parse(configRes.rows[0].value as string);
+      }
+
+      const d = new Date(date + 'T00:00:00');
+      const dayOfWeek = d.getDay();
+      
+      if (!config.workdays.includes(dayOfWeek)) {
+        return res.json({ status: 'closed', slots: [] });
+      }
+
+      const slots: string[] = [];
+      let current = config.start;
+      const end = config.end;
+      const interval = config.interval || 30;
+
+      const parseMinutes = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+
+      const formatMinutes = (mins: number) => {
+        const h = Math.floor(mins / 60).toString().padStart(2, '0');
+        const m = (mins % 60).toString().padStart(2, '0');
+        return `${h}:${m}`;
+      };
+
+      let currentMins = parseMinutes(current);
+      const endMins = parseMinutes(end);
+
+      while (currentMins < endMins) {
+        slots.push(formatMinutes(currentMins));
+        currentMins += interval;
+      }
+
+      const bookedRes = await db.execute({
+        sql: "SELECT time FROM appointments WHERE date = ? AND status != 'cancelled'",
+        args: [date as string]
+      });
+      const bookedTimes = bookedRes.rows.map(r => r.time as string);
+      const available = slots.filter(s => !bookedTimes.includes(s));
+
+      res.json({ status: 'open', slots: available });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Client notifications with automatic proximity notification generator
+  app.get("/api/portal/patients/:id/notifications", async (req, res) => {
+    const patientId = req.params.id;
+    try {
+      // 1. Check for upcoming appointments (today and tomorrow) to generate proximity notifications
+      const todayStr = new Date().toISOString().split('T')[0];
+      const upcoming = await db.execute({
+        sql: "SELECT * FROM appointments WHERE patient_id = ? AND date >= ? AND status != 'cancelled'",
+        args: [patientId, todayStr]
+      });
+
+      for (const appt of upcoming.rows) {
+        const apptDateStr = appt.date as string;
+        const apptTimeStr = appt.time as string;
+        
+        // Search if we already created a proximity notice for this appointment's date & time
+        const checkAlert = await db.execute({
+          sql: "SELECT * FROM client_notifications WHERE patient_id = ? AND message LIKE ?",
+          args: [patientId, `%${apptDateStr}%${apptTimeStr}%`]
+        });
+
+        if (checkAlert.rows.length === 0) {
+          await db.execute({
+            sql: "INSERT INTO client_notifications (patient_id, title, message) VALUES (?, ?, ?)",
+            args: [
+              patientId,
+              "Agendamento se aproximando!",
+              `Lembrete: Seu agendamento para o dia ${apptDateStr.split('-').reverse().join('/')} às ${apptTimeStr} está próximo. Esperamos por você!`
+            ]
+          });
+        }
+      }
+
+      // 2. Retrieve all notifications
+      const result = await db.execute({
+        sql: "SELECT * FROM client_notifications WHERE patient_id = ? ORDER BY created_at DESC LIMIT 50",
+        args: [patientId]
+      });
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/portal/notifications/:id/read", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "UPDATE client_notifications SET is_read = 1 WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Backup & Restore
   app.get("/api/backup", async (req, res) => {
     try {
-      const tables = ['clinics', 'patients', 'appointments', 'financial', 'packages', 'catalog_items', 'budgets', 'budget_items', 'anamnesis', 'photos'];
+      const tables = ['clinics', 'patients', 'appointments', 'financial', 'packages', 'catalog_items', 'budgets', 'budget_items', 'anamnesis', 'photos', 'settings', 'client_notifications'];
       const data: Record<string, any[]> = {};
       for (const t of tables) {
         const result = await db.execute(`SELECT * FROM ${t}`);
@@ -584,7 +824,7 @@ async function startServer() {
     const { data } = req.body;
     if (!data) return res.status(400).json({ error: "Invalid backup data" });
     try {
-      const tables = ['budget_items', 'budgets', 'photos', 'anamnesis', 'financial', 'packages', 'appointments', 'patients', 'catalog_items', 'clinics'];
+      const tables = ['budget_items', 'budgets', 'photos', 'anamnesis', 'financial', 'packages', 'appointments', 'patients', 'catalog_items', 'clinics', 'settings', 'client_notifications'];
       for (const t of tables) {
         await db.execute(`DELETE FROM ${t}`);
       }

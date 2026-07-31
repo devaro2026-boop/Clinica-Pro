@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CircleDollarSign, LogOut, X, Package } from 'lucide-react';
+import { LayoutDashboard, Users, CircleDollarSign, LogOut, X, Package, ShoppingCart, Globe } from 'lucide-react';
 
 export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void }) {
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Agenda & Dashboard" },
     { to: "/patients", icon: Users, label: "Clientes & Pacientes" },
     { to: "/catalog", icon: Package, label: "Serviços e Produtos" },
+    { to: "/pdv", icon: ShoppingCart, label: "Frente de Caixa (PDV)" },
     { to: "/financial", icon: CircleDollarSign, label: "Financeiro & Caixa" },
   ];
 
@@ -46,8 +47,24 @@ export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void })
           </NavLink>
         ))}
       </nav>
+      
+      {/* Client Portal Link Box */}
+      <div className="p-4 mx-4 mb-4 bg-rose-50 border border-rose-100/50 rounded-2xl space-y-2">
+        <p className="text-[10px] uppercase font-bold text-rose-500 tracking-wider">Link do Portal do Cliente</p>
+        <p className="text-[11px] text-gray-600 leading-normal">Seus clientes podem realizar agendamentos online por este link:</p>
+        <a 
+          href="/portal" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center justify-between text-xs font-bold text-rose-600 hover:text-rose-700 bg-white border border-rose-200 px-3 py-2 rounded-xl transition-all shadow-xs"
+        >
+          <span className="truncate">Acessar Portal</span>
+          <Globe className="w-3.5 h-3.5 shrink-0" />
+        </a>
+      </div>
+
       <div className="p-4 border-t border-gray-100">
-        <button className="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:text-gray-900 w-full rounded-xl hover:bg-gray-50 transition-colors">
+        <button className="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:text-red-600 w-full rounded-xl hover:bg-gray-50 transition-colors">
           <LogOut className="w-5 h-5" />
           <span>Sair</span>
         </button>
