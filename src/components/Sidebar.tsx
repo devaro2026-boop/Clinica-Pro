@@ -11,10 +11,15 @@ export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void })
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
-      <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800 tracking-tight">Estética & Salão Pro</h1>
-          <p className="text-xs text-gray-500 mt-1">Clínica & Salão de Beleza</p>
+      <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-pink-100">
+            G
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight lowercase">gestto</h1>
+            <p className="text-[10px] uppercase font-semibold text-rose-500 tracking-wider">Estética & Salão</p>
+          </div>
         </div>
         {closeSidebar && (
           <button onClick={closeSidebar} className="md:hidden p-1 -mt-1 -mr-2 text-gray-400 hover:text-gray-600">
