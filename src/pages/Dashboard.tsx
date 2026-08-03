@@ -13,6 +13,13 @@ export default function Dashboard() {
   const [interval, setIntervalVal] = useState(30);
   const [workdays, setWorkdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Store Settings State
+  const [storeName, setStoreName] = useState('Gestto Estética & Beleza');
+  const [storeAddress, setStoreAddress] = useState('Av. Principal de Estética & Beleza, 1200 - Centro');
+  const [storeWhatsApp, setStoreWhatsApp] = useState('11988887777');
+  const [storePhone, setStorePhone] = useState('(11) 3333-2222');
+  const [storeSaveSuccess, setStoreSaveSuccess] = useState(false);
   
   const fetchAppointments = async () => {
     try {
@@ -42,6 +49,16 @@ export default function Dashboard() {
         setEndHour(data.end || '18:00');
         setIntervalVal(data.interval || 30);
         setWorkdays(data.workdays || [1, 2, 3, 4, 5]);
+      }
+
+      // Fetch store details
+      const storeRes = await fetch('/api/settings/store_info');
+      const storeData = await storeRes.json();
+      if (storeData) {
+        setStoreName(storeData.name || 'Gestto Estética & Beleza');
+        setStoreAddress(storeData.address || 'Av. Principal de Estética & Beleza, 1200 - Centro');
+        setStoreWhatsApp(storeData.whatsapp || '11988887777');
+        setStorePhone(storeData.phone || '(11) 3333-2222');
       }
     } catch (e) {
       console.error(e);
@@ -82,6 +99,29 @@ export default function Dashboard() {
       }
     } catch (e) {
       alert('Erro ao salvar horários de atendimento.');
+    }
+  };
+
+  const handleSaveStoreSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStoreSaveSuccess(false);
+    try {
+      const res = await fetch('/api/settings/store_info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: storeName,
+          address: storeAddress,
+          whatsapp: storeWhatsApp,
+          phone: storePhone
+        })
+      });
+      if (res.ok) {
+        setStoreSaveSuccess(true);
+        setTimeout(() => setStoreSaveSuccess(false), 3000);
+      }
+    } catch (e) {
+      alert('Erro ao salvar informações da loja.');
     }
   };
 
@@ -297,6 +337,88 @@ export default function Dashboard() {
             >
               <Save className="w-4 h-4" />
               <span>Salvar Configurações</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Store Information Configuration Card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
+        <div className="flex items-center space-x-2.5 pb-4 border-b border-gray-100">
+          <Settings className="w-5 h-5 text-gray-700" />
+          <div>
+            <h3 className="font-bold text-gray-900">Informações da Loja / Clínica</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Defina os dados de contato e endereço que aparecem no Portal do Cliente</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveStoreSettings} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Store Name */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nome da Loja / Clínica</label>
+              <input
+                type="text"
+                required
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                value={storeName}
+                onChange={e => setStoreName(e.target.value)}
+              />
+            </div>
+
+            {/* Store Address */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Endereço Completo</label>
+              <input
+                type="text"
+                required
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                value={storeAddress}
+                onChange={e => setStoreAddress(e.target.value)}
+              />
+            </div>
+
+            {/* Store WhatsApp */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">WhatsApp da Loja (Somente números)</label>
+              <input
+                type="text"
+                required
+                placeholder="Ex: 11988887777"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                value={storeWhatsApp}
+                onChange={e => setStoreWhatsApp(e.target.value.replace(/\D/g, ''))}
+              />
+            </div>
+
+            {/* Store Phone */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Telefone Fixo / Adicional</label>
+              <input
+                type="text"
+                placeholder="Ex: (11) 3333-2222"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                value={storePhone}
+                onChange={e => setStorePhone(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-gray-100 pt-5 mt-4">
+            {storeSaveSuccess ? (
+              <span className="text-xs text-green-600 font-semibold flex items-center space-x-1">
+                <Check className="w-4 h-4" />
+                <span>Informações salvas com sucesso!</span>
+              </span>
+            ) : (
+              <span className="text-xs text-gray-400">Clique em salvar para atualizar as informações de contato no Portal do Cliente.</span>
+            )}
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-2 shadow-sm"
+            >
+              <Save className="w-4 h-4" />
+              <span>Salvar Informações</span>
             </button>
           </div>
         </form>

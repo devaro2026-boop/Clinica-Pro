@@ -124,9 +124,16 @@ async function initDb() {
         description TEXT,
         unit_price REAL NOT NULL,
         unit_type TEXT NOT NULL,
+        stock INTEGER DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  try {
+    await db.execute("ALTER TABLE catalog_items ADD COLUMN stock INTEGER DEFAULT NULL");
+  } catch (e) {
+    // Column already exists or table doesn't exist yet
+  }
   
   await db.execute(`
     CREATE TABLE IF NOT EXISTS budgets (
@@ -233,7 +240,7 @@ async function startServer() {
         sql: "INSERT INTO patients (clinic_id, name, phone, email, cpf, birth_date) VALUES (?, ?, ?, ?, ?, ?)",
         args: [clinic_id || 1, name, phone, email, cpf, birth_date]
       });
-      res.json({ id: result.lastInsertRowid });
+      res.json({ id: Number(result.lastInsertRowid) });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -285,7 +292,7 @@ async function startServer() {
         sql: "INSERT INTO anamnesis (patient_id, content) VALUES (?, ?)",
         args: [req.params.id, content]
       });
-      res.json({ id: result.lastInsertRowid });
+      res.json({ id: Number(result.lastInsertRowid) });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -304,7 +311,7 @@ async function startServer() {
         sql: "INSERT INTO appointments (clinic_id, patient_id, date, time, description, status) VALUES (?, ?, ?, ?, ?, ?)",
         args: [clinic_id || 1, patient_id, date, time, description, status || 'Scheduled']
       });
-      res.json({ id: result.lastInsertRowid });
+      res.json({ id: Number(result.lastInsertRowid) });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -338,13 +345,26 @@ async function startServer() {
   });
 
   app.post("/api/financial", async (req, res) => {
-    const { clinic_id, patient_id, description, amount, type, payment_method, status, date } = req.body;
+    const { clinic_id, patient_id, description, amount, type, payment_method, status, date, items } = req.body;
     try {
       const result = await db.execute({
         sql: "INSERT INTO financial (clinic_id, patient_id, description, amount, type, payment_method, status, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         args: [clinic_id || 1, patient_id, description, amount, type, payment_method, status, date]
       });
-      res.json({ id: result.lastInsertRowid });
+
+      // Automatically deduct product stock if items are sent
+      if (items && Array.isArray(items)) {
+        for (const item of items) {
+          if (item.type === 'product') {
+            await db.execute({
+              sql: "UPDATE catalog_items SET stock = CASE WHEN stock >= ? THEN stock - ? ELSE 0 END WHERE id = ? AND stock IS NOT NULL",
+              args: [item.quantity, item.quantity, item.id]
+            });
+          }
+        }
+      }
+
+      res.json({ id: Number(result.lastInsertRowid) });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -402,7 +422,7 @@ async function startServer() {
         sql: "INSERT INTO photos (patient_id, type, url, date) VALUES (?, ?, ?, ?)",
         args: [patient_id, type, url, date || new Date().toISOString()]
       });
-      res.json({ id: result.lastInsertRowid, url });
+      res.json({ id: Number(result.lastInsertRowid), url });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -445,7 +465,7 @@ async function startServer() {
         sql: "INSERT INTO anamnesis (patient_id, content) VALUES (?, ?)",
         args: [req.params.id, content]
       });
-      res.json({ id: result.lastInsertRowid });
+      res.json({ id: Number(result.lastInsertRowid) });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -463,7 +483,7 @@ async function startServer() {
         sql: "INSERT INTO consent_forms (patient_id, title, signature_base64, pdf_url) VALUES (?, ?, ?, ?)",
         args: [patient_id, title, signature_base64, url]
       });
-      res.json({ id: result.lastInsertRowid, url });
+      res.json({ id: Number(result.lastInsertRowid), url });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -495,7 +515,7 @@ async function startServer() {
         sql: "INSERT INTO packages (patient_id, name, total_sessions, used_sessions) VALUES (?, ?, ?, ?)",
         args: [req.params.id, name, total_sessions, 0]
       });
-      res.json({ id: result.lastInsertRowid });
+      res.json({ id: Number(result.lastInsertRowid) });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -518,22 +538,22 @@ async function startServer() {
   });
 
   app.post("/api/catalog", async (req, res) => {
-    const { type, name, description, unit_price, unit_type } = req.body;
+    const { type, name, description, unit_price, unit_type, stock } = req.body;
     try {
       const result = await db.execute({
-        sql: "INSERT INTO catalog_items (type, name, description, unit_price, unit_type) VALUES (?, ?, ?, ?, ?)",
-        args: [type, name, description, unit_price, unit_type]
+        sql: "INSERT INTO catalog_items (type, name, description, unit_price, unit_type, stock) VALUES (?, ?, ?, ?, ?, ?)",
+        args: [type, name, description, unit_price, unit_type, stock !== undefined ? stock : null]
       });
-      res.json({ id: result.lastInsertRowid });
+      res.json({ id: Number(result.lastInsertRowid) });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
   
   app.put("/api/catalog/:id", async (req, res) => {
-    const { type, name, description, unit_price, unit_type } = req.body;
+    const { type, name, description, unit_price, unit_type, stock } = req.body;
     try {
       await db.execute({
-        sql: "UPDATE catalog_items SET type = ?, name = ?, description = ?, unit_price = ?, unit_type = ? WHERE id = ?",
-        args: [type, name, description, unit_price, unit_type, req.params.id]
+        sql: "UPDATE catalog_items SET type = ?, name = ?, description = ?, unit_price = ?, unit_type = ?, stock = ? WHERE id = ?",
+        args: [type, name, description, unit_price, unit_type, stock !== undefined ? stock : null, req.params.id]
       });
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -576,7 +596,7 @@ async function startServer() {
         sql: "INSERT INTO budgets (patient_id, total_amount, notes) VALUES (?, ?, ?)",
         args: [req.params.id, total_amount, notes]
       });
-      const budgetId = result.lastInsertRowid;
+      const budgetId = Number(result.lastInsertRowid);
       
       for (const item of items) {
         await db.execute({
@@ -675,7 +695,7 @@ async function startServer() {
         args: [1, name, phone, email || '', cpf || '', birth_date || '']
       });
       
-      const newId = result.lastInsertRowid;
+      const newId = Number(result.lastInsertRowid);
       const newPatient = await db.execute({
         sql: "SELECT * FROM patients WHERE id = ?",
         args: [newId]

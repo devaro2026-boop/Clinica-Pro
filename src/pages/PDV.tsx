@@ -110,7 +110,12 @@ export default function PDV() {
       type: 'income',
       payment_method: paymentMethod,
       status: 'paid',
-      date: format(new Date(), 'yyyy-MM-dd')
+      date: format(new Date(), 'yyyy-MM-dd'),
+      items: cart.map(ci => ({
+        id: ci.item.id,
+        quantity: ci.quantity,
+        type: ci.item.type
+      }))
     };
 
     try {

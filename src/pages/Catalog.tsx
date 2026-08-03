@@ -11,7 +11,8 @@ export default function Catalog() {
     name: '',
     description: '',
     unit_price: 0,
-    unit_type: 'sessão'
+    unit_type: 'sessão',
+    stock: undefined
   });
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -41,7 +42,7 @@ export default function Catalog() {
       });
     }
     
-    setFormData({ type: 'service', name: '', description: '', unit_price: 0, unit_type: 'sessão' });
+    setFormData({ type: 'service', name: '', description: '', unit_price: 0, unit_type: 'sessão', stock: undefined });
     setEditingId(null);
     setShowForm(false);
     fetchItems();
@@ -81,7 +82,7 @@ export default function Catalog() {
               setShowForm(!showForm);
               if (showForm) {
                 setEditingId(null);
-                setFormData({ type: 'service', name: '', description: '', unit_price: 0, unit_type: 'sessão' });
+                setFormData({ type: 'service', name: '', description: '', unit_price: 0, unit_type: 'sessão', stock: undefined });
               }
             }}
             className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-5 py-2 md:py-2.5 rounded-xl transition-colors font-medium text-sm md:text-base"
@@ -98,7 +99,15 @@ export default function Catalog() {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-              <select className="w-full p-2.5 border border-gray-300 rounded-xl bg-white outline-none" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as 'service'|'product'})}>
+              <select className="w-full p-2.5 border border-gray-300 rounded-xl bg-white outline-none" value={formData.type} onChange={e => {
+                const newType = e.target.value as 'service'|'product';
+                setFormData({
+                  ...formData, 
+                  type: newType,
+                  unit_type: newType === 'product' ? 'unidade' : 'sessão',
+                  stock: newType === 'product' ? 0 : undefined
+                });
+              }}>
                 <option value="service">Serviço</option>
                 <option value="product">Produto (ex: Botox, Ácido)</option>
               </select>
@@ -124,6 +133,20 @@ export default function Catalog() {
                 <option value="pacote">Pacote</option>
               </select>
             </div>
+            {formData.type === 'product' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade em Estoque</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  required
+                  placeholder="Ex: 50" 
+                  className="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={formData.stock !== undefined && formData.stock !== null ? formData.stock : 0} 
+                  onChange={e => setFormData({...formData, stock: parseInt(e.target.value) || 0})} 
+                />
+              </div>
+            )}
             <div className="md:col-span-2 flex justify-end mt-2">
               <button type="submit" className="w-full md:w-auto bg-gray-900 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-gray-800 transition-colors">
                 Salvar Item
@@ -144,6 +167,15 @@ export default function Catalog() {
                 <div className="min-w-0">
                   <h4 className="text-sm md:text-base font-semibold text-gray-900 truncate">{item.name}</h4>
                   <p className="text-xs md:text-sm text-gray-500 truncate">{item.description}</p>
+                  {item.type === 'product' && (
+                    <span className={`inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      item.stock !== undefined && item.stock !== null && item.stock > 0 
+                        ? 'bg-green-50 text-green-700 border border-green-200' 
+                        : 'bg-red-50 text-red-700 border border-red-200'
+                    }`}>
+                      Estoque: {item.stock !== undefined && item.stock !== null ? `${item.stock} ${item.unit_type}` : 'Sem estoque'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-1/3">

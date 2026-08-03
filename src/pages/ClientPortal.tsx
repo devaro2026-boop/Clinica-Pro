@@ -30,6 +30,14 @@ export default function ClientPortal() {
   const [authError, setAuthError] = useState('');
   const [regError, setRegError] = useState('');
 
+  // Store information state
+  const [storeInfo, setStoreInfo] = useState({
+    name: 'Gestto Estética & Beleza',
+    address: 'Av. Principal de Estética & Beleza, 1200 - Centro',
+    whatsapp: '11988887777',
+    phone: '(11) 3333-2222'
+  });
+
   // Portal State
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [notifications, setNotifications] = useState<ClientNotification[]>([]);
@@ -48,6 +56,23 @@ export default function ClientPortal() {
   // Notifications bell state
   const [showBellMenu, setShowBellMenu] = useState(false);
 
+  const fetchStoreInfo = async () => {
+    try {
+      const res = await fetch('/api/settings/store_info');
+      const data = await res.json();
+      if (data) {
+        setStoreInfo({
+          name: data.name || 'Gestto Estética & Beleza',
+          address: data.address || 'Av. Principal de Estética & Beleza, 1200 - Centro',
+          whatsapp: data.whatsapp || '11988887777',
+          phone: data.phone || '(11) 3333-2222'
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     // Check local storage session
     const storedUser = localStorage.getItem('gestto_client_user');
@@ -56,6 +81,7 @@ export default function ClientPortal() {
       setCurrentUser(parsed);
     }
     fetchServices();
+    fetchStoreInfo();
   }, []);
 
   useEffect(() => {
@@ -254,10 +280,10 @@ export default function ClientPortal() {
             
             <div className="relative z-10">
               <div className="flex items-center space-x-3 mb-8">
-                <div className="w-10 h-10 rounded-2xl bg-white/60 backdrop-blur-md flex items-center justify-center text-[#5c4f3c] font-black text-xl border border-white/80 shadow-xs">
-                  G
+                <div className="w-10 h-10 rounded-2xl bg-white/60 backdrop-blur-md flex items-center justify-center text-[#5c4f3c] font-black text-xl border border-white/80 shadow-xs uppercase">
+                  {storeInfo.name.charAt(0)}
                 </div>
-                <span className="text-2xl font-black tracking-tight text-[#4a3e31]">gestto</span>
+                <span className="text-2xl font-black tracking-tight text-[#4a3e31] lowercase">{storeInfo.name}</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight text-[#3a2f22]">
                 Seu momento de bem-estar começa aqui.
@@ -469,10 +495,10 @@ export default function ClientPortal() {
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#cfbea5] via-[#ebdcd0] to-[#dfd3c3] flex items-center justify-center text-[#5c4f3c] font-black text-lg shadow-sm shadow-amber-100/30">
-              G
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#cfbea5] via-[#ebdcd0] to-[#dfd3c3] flex items-center justify-center text-[#5c4f3c] font-black text-lg shadow-sm shadow-amber-100/30 uppercase">
+              {storeInfo.name.charAt(0)}
             </div>
-            <span className="text-lg font-black tracking-tight text-gray-950 lowercase">gestto</span>
+            <span className="text-lg font-black tracking-tight text-gray-950 lowercase">{storeInfo.name}</span>
             <span className="text-[10px] uppercase font-bold text-[#a38e74] tracking-wider bg-[#fbf9f5] border border-[#ebdcd0]/50 px-2 py-0.5 rounded-lg">Portal do Cliente</span>
           </div>
 
@@ -765,15 +791,32 @@ export default function ClientPortal() {
             {/* General Info Card */}
             <div className="bg-gradient-to-tr from-gray-900 to-indigo-950 p-6 rounded-2xl text-white space-y-4">
               <h4 className="font-bold text-sm">Informações de Contato</h4>
-              <div className="space-y-3 text-xs text-gray-300">
-                <div className="flex items-center space-x-2.5">
-                  <MapPin className="w-4 h-4 text-[#ebdcd0] shrink-0" />
-                  <span>Av. Principal de Estética & Beleza, 1200 - Centro</span>
+              <div className="space-y-4 text-xs text-gray-300">
+                <div className="flex items-start space-x-2.5">
+                  <MapPin className="w-4 h-4 text-[#ebdcd0] shrink-0 mt-0.5" />
+                  <span>{storeInfo.address}</span>
                 </div>
-                <div className="flex items-center space-x-2.5">
-                  <Phone className="w-4 h-4 text-[#ebdcd0] shrink-0" />
-                  <span>(11) 98888-7777 / (11) 3333-2222</span>
-                </div>
+                {storeInfo.phone && (
+                  <div className="flex items-center space-x-2.5">
+                    <Phone className="w-4 h-4 text-[#ebdcd0] shrink-0" />
+                    <span>Telefone: {storeInfo.phone}</span>
+                  </div>
+                )}
+                {storeInfo.whatsapp && (
+                  <div className="pt-2 border-t border-white/10">
+                    <a
+                      href={`https://wa.me/55${storeInfo.whatsapp.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center space-x-2 w-full bg-[#25d366] hover:bg-[#20ba5a] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md shadow-[#25d366]/20 text-xs text-center"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current shrink-0">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.735-3.157c1.424.846 2.87 1.285 4.318 1.285 5.511 0 9.998-4.487 10-10 .002-2.67-1.04-5.18-2.93-7.072C16.22 3.164 13.713 2.12 11.042 2.12c-5.511 0-9.998 4.487-10 10-.001 1.547.422 3.053 1.22 4.394l-.113.188L1.13 20.91l4.316-1.13c.184.101.328.181.546.294z"/>
+                      </svg>
+                      <span>Fale Conosco no WhatsApp</span>
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -783,7 +826,7 @@ export default function ClientPortal() {
       </main>
 
       <footer className="bg-white border-t border-gray-200 mt-12 py-6 text-center text-xs text-gray-500">
-        <p>© 2026 Gestto - Clínica de Estética & Salão de Beleza. Todos os direitos reservados.</p>
+        <p>© 2026 {storeInfo.name}. Todos os direitos reservados.</p>
       </footer>
     </div>
   );

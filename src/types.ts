@@ -82,6 +82,7 @@ export interface CatalogItem {
   description: string;
   unit_price: number;
   unit_type: string; // 'unidade', 'ml', 'sessão'
+  stock?: number;
   created_at: string;
 }
 
