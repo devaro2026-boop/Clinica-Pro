@@ -751,6 +751,10 @@ export default function ClientPortal() {
                 {appointments.map(appt => {
                   const [year, month, day] = appt.date.split('-');
                   const isUpcoming = new Date(`${appt.date}T${appt.time || '00:00'}`) >= new Date();
+                  const isConfirmed = appt.status === 'Confirmado' || appt.status === 'Confirmed';
+                  const isScheduled = appt.status === 'Scheduled' || appt.status === 'Agendado' || appt.status === '';
+                  const isCompleted = appt.status === 'Completed' || appt.status === 'Concluído';
+                  const isCancelled = appt.status === 'Cancelled' || appt.status === 'Cancelado';
                   
                   return (
                     <div key={appt.id} className="p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors bg-gray-50/50 space-y-3">
@@ -762,17 +766,22 @@ export default function ClientPortal() {
                             <span>{day}/{month}/{year} às {appt.time}</span>
                           </div>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${appt.status === 'Completed' ? 'bg-green-100 text-green-800' : appt.status === 'Cancelled' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
-                          {appt.status === 'Scheduled' ? 'Agendado' : appt.status === 'Completed' ? 'Concluído' : 'Cancelado'}
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                          isCompleted ? 'bg-teal-100 text-teal-800' : 
+                          isConfirmed ? 'bg-green-100 text-green-800' : 
+                          isCancelled ? 'bg-red-100 text-red-800' : 
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {isConfirmed ? 'Confirmado' : isCompleted ? 'Concluído' : isCancelled ? 'Cancelado' : 'Agendado'}
                         </span>
                       </div>
                       
                       {/* Alert notice in item itself if near */}
-                      {isUpcoming && appt.status === 'Scheduled' && (
+                      {isUpcoming && (isScheduled || isConfirmed) && (
                         <div className="bg-[#fbf9f5] p-2.5 rounded-lg border border-[#ebdcd0]/60 flex items-start space-x-2">
                           <Bell className="w-3.5 h-3.5 text-[#a38e74] mt-0.5 shrink-0" />
                           <p className="text-[10px] text-[#5c4f3c] leading-relaxed font-semibold">
-                            Fique atento! Seu atendimento está agendado e confirmado para o dia {day}/{month}/{year} às {appt.time}.
+                            Fique atento! Seu atendimento está agendado e {isConfirmed ? 'confirmado' : 'registrado'} para o dia {day}/{month}/{year} às {appt.time}.
                           </p>
                         </div>
                       )}

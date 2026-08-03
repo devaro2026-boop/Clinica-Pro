@@ -205,8 +205,71 @@ async function initDb() {
   }
 }
 
+async function runDataCleanup() {
+  try {
+    const result = await db.execute({
+      sql: "SELECT value FROM settings WHERE key = ?",
+      args: ['data_cleanup']
+    });
+    let enabled = true;
+    let retentionDays = 30;
+
+    if (result.rows.length > 0) {
+      try {
+        const config = JSON.parse(result.rows[0].value as string);
+        enabled = config.enabled !== undefined ? config.enabled : true;
+        retentionDays = Number(config.retentionDays) || 30;
+      } catch (parseErr) {
+        console.error("[Cleanup] Error parsing data_cleanup settings:", parseErr);
+      }
+    }
+
+    if (!enabled) {
+      console.log("[Cleanup] Automatic data cleanup is disabled.");
+      return;
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+    console.log(`[Cleanup] Running automatic data cleanup. Cutoff date (older than ${retentionDays} days): ${cutoffStr}`);
+
+    // Clean up appointments
+    await db.execute({
+      sql: "DELETE FROM appointments WHERE date < ?",
+      args: [cutoffStr]
+    });
+
+    // Clean up financial entries
+    await db.execute({
+      sql: "DELETE FROM financial WHERE date < ?",
+      args: [cutoffStr]
+    });
+
+    // Clean up client notifications
+    await db.execute({
+      sql: "DELETE FROM client_notifications WHERE datetime(created_at) < datetime(?)",
+      args: [`${cutoffStr} 00:00:00`]
+    });
+
+    console.log(`[Cleanup] Done. Cleared old records older than ${retentionDays} days.`);
+  } catch (err) {
+    console.error("[Cleanup] Error running automatic cleanup:", err);
+  }
+}
+
 async function startServer() {
   await initDb().catch(e => console.error("DB Init Error:", e));
+
+  // Initialize automatic data cleanup on startup and schedule it daily
+  setTimeout(() => {
+    runDataCleanup().catch(err => console.error("Startup Cleanup Error:", err));
+  }, 5000);
+  const ONEDAY_MS = 24 * 60 * 60 * 1000;
+  setInterval(() => {
+    runDataCleanup().catch(err => console.error("Periodic Cleanup Error:", err));
+  }, ONEDAY_MS);
 
   const app = express();
   const PORT = 3000;
@@ -862,6 +925,16 @@ async function startServer() {
       }
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Manual Trigger for Data Cleanup
+  app.post("/api/cleanup/now", async (req, res) => {
+    try {
+      await runDataCleanup();
+      res.json({ success: true, message: "Limpeza de dados realizada com sucesso!" });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Vite middleware for development

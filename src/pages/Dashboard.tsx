@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Appointment } from '../types';
 import { format, parseISO } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, User, Phone, CheckCircle, XCircle, Settings, Save, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Phone, CheckCircle, XCircle, Settings, Save, Check, Trash2, History } from 'lucide-react';
 import NotificationBell from '../components/NotificationBell';
 
 export default function Dashboard() {
@@ -20,6 +20,13 @@ export default function Dashboard() {
   const [storeWhatsApp, setStoreWhatsApp] = useState('11988887777');
   const [storePhone, setStorePhone] = useState('(11) 3333-2222');
   const [storeSaveSuccess, setStoreSaveSuccess] = useState(false);
+
+  // Data Cleanup Settings State
+  const [cleanupEnabled, setCleanupEnabled] = useState(true);
+  const [cleanupDays, setCleanupDays] = useState(30);
+  const [cleanupSaveSuccess, setCleanupSaveSuccess] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [manualCleanupSuccess, setManualCleanupSuccess] = useState(false);
   
   const fetchAppointments = async () => {
     try {
@@ -59,6 +66,14 @@ export default function Dashboard() {
         setStoreAddress(storeData.address || 'Av. Principal de Estética & Beleza, 1200 - Centro');
         setStoreWhatsApp(storeData.whatsapp || '11988887777');
         setStorePhone(storeData.phone || '(11) 3333-2222');
+      }
+
+      // Fetch cleanup settings
+      const cleanupRes = await fetch('/api/settings/data_cleanup');
+      const cleanupData = await cleanupRes.json();
+      if (cleanupData) {
+        setCleanupEnabled(cleanupData.enabled !== undefined ? cleanupData.enabled : true);
+        setCleanupDays(cleanupData.retentionDays !== undefined ? cleanupData.retentionDays : 30);
       }
     } catch (e) {
       console.error(e);
@@ -122,6 +137,52 @@ export default function Dashboard() {
       }
     } catch (e) {
       alert('Erro ao salvar informações da loja.');
+    }
+  };
+
+  const handleSaveCleanupSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCleanupSaveSuccess(false);
+    try {
+      const res = await fetch('/api/settings/data_cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: cleanupEnabled,
+          retentionDays: Number(cleanupDays)
+        })
+      });
+      if (res.ok) {
+        setCleanupSaveSuccess(true);
+        setTimeout(() => setCleanupSaveSuccess(false), 3000);
+      }
+    } catch (e) {
+      alert('Erro ao salvar configurações de limpeza de dados.');
+    }
+  };
+
+  const handleManualCleanup = async () => {
+    if (!window.confirm('Atenção: Tem certeza que deseja limpar os históricos agora? Serão removidos permanentemente agendamentos, lançamentos de caixa e notificações mais antigos do que o período de retenção definido.')) {
+      return;
+    }
+    setIsCleaning(true);
+    setManualCleanupSuccess(false);
+    try {
+      const res = await fetch('/api/cleanup/now', {
+        method: 'POST'
+      });
+      if (res.ok) {
+        setManualCleanupSuccess(true);
+        setTimeout(() => setManualCleanupSuccess(false), 4000);
+        fetchAppointments();
+      } else {
+        alert('Erro ao executar a limpeza de dados.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      setIsCleaning(false);
     }
   };
 
@@ -422,6 +483,131 @@ export default function Dashboard() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Data Cleanup / History Pruning Configuration Card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
+        <div className="flex items-center space-x-2.5 pb-4 border-b border-gray-100">
+          <History className="w-5 h-5 text-gray-700" />
+          <div>
+            <h3 className="font-bold text-gray-900">Limpeza de Histórico e Privacidade</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Defina o período de retenção para os agendamentos, registros de caixa e notificações do sistema</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Automatic Cleanup Form */}
+          <form onSubmit={handleSaveCleanupSettings} className="space-y-6 border-r border-gray-100 pr-0 lg:pr-8">
+            <h4 className="text-sm font-bold text-gray-900 flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+              <span>Limpeza Diária Automática</span>
+            </h4>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">Ativar Limpeza Automática</label>
+                  <span className="text-[11px] text-gray-400 mt-0.5 block">Executa uma rotina de remoção diária automática</span>
+                </div>
+                <div className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="cleanup-toggle"
+                    className="sr-only peer"
+                    checked={cleanupEnabled}
+                    onChange={e => setCleanupEnabled(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Período de Retenção de Dados</label>
+                <select
+                  disabled={!cleanupEnabled}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  value={cleanupDays}
+                  onChange={e => setCleanupDays(Number(e.target.value))}
+                >
+                  <option value={15}>Manter somente os últimos 15 dias</option>
+                  <option value={30}>Manter somente os últimos 30 dias (Recomendado)</option>
+                  <option value={60}>Manter somente os últimos 60 dias</option>
+                  <option value={90}>Manter somente os últimos 90 dias</option>
+                  <option value={180}>Manter somente os últimos 180 dias</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                  Todos os agendamentos (incluindo meus agendamentos do portal do cliente), fluxos de caixa e notificações mais antigos do que este limite serão removidos de forma definitiva a cada 24 horas.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-gray-100 pt-5">
+              {cleanupSaveSuccess ? (
+                <span className="text-xs text-green-600 font-semibold flex items-center space-x-1">
+                  <Check className="w-4 h-4" />
+                  <span>Configurações salvas!</span>
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">Padrão: 30 dias de retenção.</span>
+              )}
+              <button
+                type="submit"
+                className="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-2 shadow-sm"
+              >
+                <Save className="w-4 h-4" />
+                <span>Salvar Configuração</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Manual Immediate Cleanup Section */}
+          <div className="flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-gray-900 flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                <span>Limpeza Manual Imediata</span>
+              </h4>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Se você deseja limpar a base de dados imediatamente de acordo com o período de retenção atual de <span className="font-bold text-gray-900">{cleanupDays} dias</span>, você pode acionar a rotina de limpeza manual agora mesmo.
+              </p>
+              <div className="bg-red-50/50 rounded-xl p-4 border border-red-100 flex items-start space-x-3">
+                <Trash2 className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div className="text-[11px] text-red-700 leading-relaxed font-semibold">
+                  Esta ação é irreversível e excluirá permanentemente dados de histórico fora do período de retenção (antes de {format(new Date(Date.now() - cleanupDays * 24 * 60 * 60 * 1000), 'dd/MM/yyyy')}).
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-gray-100 pt-5">
+              {manualCleanupSuccess ? (
+                <span className="text-xs text-green-600 font-semibold flex items-center space-x-1">
+                  <Check className="w-4 h-4" />
+                  <span>Histórico limpo com sucesso!</span>
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">Clique para executar.</span>
+              )}
+              <button
+                type="button"
+                onClick={handleManualCleanup}
+                disabled={isCleaning}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-2 shadow-sm"
+              >
+                {isCleaning ? (
+                  <>
+                    <Clock className="w-4 h-4 animate-spin" />
+                    <span>Limpando Base...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Limpar Histórico Agora</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
