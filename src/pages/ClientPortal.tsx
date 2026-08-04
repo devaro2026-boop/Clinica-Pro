@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { CatalogItem, Appointment } from '../types';
 import { 
   User, Phone, Mail, Calendar, Clock, Bell, LogOut, CheckCircle2, 
-  MapPin, Clipboard, ShieldCheck, ArrowRight, Sparkles, Smile 
+  MapPin, Clipboard, ShieldCheck, ArrowRight, Sparkles, Smile, Trash2
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -262,6 +262,24 @@ export default function ClientPortal() {
       fetchClientData();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const deleteNotification = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Tem certeza que deseja apagar esta mensagem?")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/portal/notifications/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchClientData();
+      } else {
+        alert("Erro ao apagar a mensagem.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro de conexão.");
     }
   };
 
@@ -538,18 +556,27 @@ export default function ClientPortal() {
                       <div 
                         key={notif.id} 
                         onClick={() => notif.is_read === 0 && markNotificationRead(notif.id)}
-                        className={`p-3 text-left transition-colors cursor-pointer ${notif.is_read === 0 ? 'bg-[#fbf9f5]/50 hover:bg-[#fbf9f5]' : 'hover:bg-gray-50'}`}
+                        className={`p-3 text-left transition-colors cursor-pointer group relative ${notif.is_read === 0 ? 'bg-[#fbf9f5]/50 hover:bg-[#fbf9f5]' : 'hover:bg-gray-50'}`}
                       >
                         <div className="flex justify-between items-start">
-                          <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5 pr-2">
                             {notif.title}
                             {notif.is_read === 0 && <span className="w-1.5 h-1.5 bg-[#a38e74] rounded-full"></span>}
                           </h4>
-                          <span className="text-[9px] text-gray-400">
-                            {format(parseISO(notif.created_at), 'dd/MM HH:mm')}
-                          </span>
+                          <div className="flex items-center space-x-1.5 shrink-0">
+                            <span className="text-[9px] text-gray-400">
+                              {format(parseISO(notif.created_at), 'dd/MM HH:mm')}
+                            </span>
+                            <button
+                              onClick={(e) => deleteNotification(notif.id, e)}
+                              className="p-1 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors opacity-100 lg:opacity-0 group-hover:opacity-100 focus:opacity-100 outline-none"
+                              title="Apagar Mensagem"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-600 mt-1 leading-relaxed">{notif.message}</p>
+                        <p className="text-xs text-gray-600 mt-1 leading-relaxed pr-6">{notif.message}</p>
                       </div>
                     ))}
                     {notifications.length === 0 && (

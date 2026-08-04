@@ -83,6 +83,10 @@ export default function Dashboard() {
   useEffect(() => {
     fetchAppointments();
     fetchSettings();
+    window.addEventListener('appointmentsUpdated', fetchAppointments);
+    return () => {
+      window.removeEventListener('appointmentsUpdated', fetchAppointments);
+    };
   }, []);
 
   const updateStatus = async (id: number, status: string) => {

@@ -389,6 +389,16 @@ async function startServer() {
       } catch (e: any) { res.status(500).json({ error: e.message }); }
   })
 
+  app.delete("/api/appointments/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM appointments WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Financial
   app.get("/api/financial", async (req, res) => {
     try {
@@ -884,6 +894,16 @@ async function startServer() {
     try {
       await db.execute({
         sql: "UPDATE client_notifications SET is_read = 1 WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/portal/notifications/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM client_notifications WHERE id = ?",
         args: [req.params.id]
       });
       res.json({ success: true });

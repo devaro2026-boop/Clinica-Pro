@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Trash2 } from 'lucide-react';
 import { Appointment } from '../types';
 
 export default function NotificationBell() {
@@ -7,7 +7,7 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const fetchFutureEvents = () => {
     fetch('/api/appointments')
       .then(res => res.json())
       .then((data: Appointment[]) => {
@@ -19,10 +19,18 @@ export default function NotificationBell() {
         const todayStr = `${year}-${month}-${day}`;
         
         // Filtrar apenas eventos estritamente no futuro (depois de hoje)
-        const future = data.filter(apt => apt.date > todayStr);
+        const future = data.filter((apt: Appointment) => apt.date > todayStr);
         setAppointments(future);
       })
       .catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchFutureEvents();
+    window.addEventListener('appointmentsUpdated', fetchFutureEvents);
+    return () => {
+      window.removeEventListener('appointmentsUpdated', fetchFutureEvents);
+    };
   }, []);
 
   useEffect(() => {
@@ -34,6 +42,28 @@ export default function NotificationBell() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleDelete = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Tem certeza que deseja apagar este agendamento?")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/appointments/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setAppointments(prev => prev.filter(apt => apt.id !== id));
+        // Notificar outras partes do sistema (como o Dashboard) para se atualizarem
+        window.dispatchEvent(new CustomEvent('appointmentsUpdated'));
+      } else {
+        alert("Erro ao apagar o agendamento.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao conectar com o servidor.");
+    }
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -68,11 +98,20 @@ export default function NotificationBell() {
                     <li key={apt.id} className="p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-start mb-1">
                         <p className="text-sm font-semibold text-gray-900">{apt.patient_name}</p>
-                        <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                          {formattedDate}
-                        </span>
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
+                            {formattedDate}
+                          </span>
+                          <button
+                            onClick={(e) => handleDelete(apt.id, e)}
+                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            title="Apagar Evento"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500 space-y-1">
+                      <div className="text-xs text-gray-500 space-y-1 pr-6">
                         <p>Horário: <span className="font-medium text-gray-700">{apt.time}</span></p>
                         {apt.description && <p className="truncate">{apt.description}</p>}
                       </div>
