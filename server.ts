@@ -5,15 +5,46 @@ import { createClient } from "@libsql/client";
 import multer from "multer";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
+import { AsyncLocalStorage } from "async_hooks";
 
-// Initialize DB Client
+// Context storage for active store slug
+const storeStorage = new AsyncLocalStorage<{ slug: string }>();
+
+// List of tables that should be isolated per store
+const tablesToPrefix = [
+  'patients', 'appointments', 'financial', 'packages', 'catalog_items', 
+  'budgets', 'budget_items', 'anamnesis', 'photos', 'consent_forms', 
+  'settings', 'client_notifications'
+];
+
+// Initialize DB Client (Internal Raw Connection)
 const dbUrl = process.env.TURSO_URL || "libsql://appclinicas-devaro.aws-us-east-1.turso.io";
 const dbAuthToken = process.env.TURSO_AUTH_TOKEN || "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODQ3Njk5NDgsImlkIjoiMDE5ZjhjODEtN2UwMS03ODhjLWE5ZTctMDI1NmRiNjAyMjI2Iiwia2lkIjoiVTdRbzBEZmExY3hLRjNvYzNoTFRGLUtwZ2ljNGFMcEpVMkY3cFpqbnk2MCIsInJpZCI6ImI3YTZkMzkzLWEzOGMtNGVkZS1hNjliLTczOGU3ZTNlZWVjMyJ9.wQhdCQXnNN_CLggww09L0_2Czt4ThLjbTXy3rEe9weY0XVNYQ4gzLaThUbwbjzV6ZAwavU_bzv3YOXNoa5_FDA";
 
-const db = createClient({
+const rawDb = createClient({
   url: dbUrl,
   authToken: dbAuthToken,
 });
+
+// Proxy wrapper for db to support multi-store dynamic routing
+const db = {
+  execute: async (query: any) => {
+    let sql = typeof query === 'string' ? query : query.sql;
+    const args = typeof query === 'string' ? [] : (query.args || []);
+    
+    const context = storeStorage.getStore();
+    if (context && context.slug) {
+      const slug = context.slug;
+      for (const table of tablesToPrefix) {
+        const regex = new RegExp(`\\b${table}\\b`, 'gi');
+        sql = sql.replace(regex, `store_${slug}_${table}`);
+      }
+    }
+    
+    return rawDb.execute({ sql, args });
+  }
+};
+
 
 // Setup File Uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -33,14 +64,37 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 async function initDb() {
-  await db.execute(`
+  // Setup Master Table
+  await rawDb.execute(`
     CREATE TABLE IF NOT EXISTS clinics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
+        name TEXT NOT NULL,
+        slug TEXT UNIQUE,
+        admin_email TEXT UNIQUE,
+        admin_password TEXT,
+        created_at DATETIME
     );
   `);
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS patients (
+
+  // Fallback migrations to add columns if they don't exist
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN slug TEXT"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN admin_email TEXT"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN admin_password TEXT"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN created_at DATETIME"); } catch(e){}
+
+  // Run data transition for legacy data (ensure backward compatibility)
+  await transitionExistingData().catch(e => console.error("Legacy transition error:", e));
+
+  // Run schema updates on all existing stores
+  await migrateAllStores().catch(e => console.error("Periodic migration error:", e));
+}
+
+async function createStoreTables(slug: string) {
+  // Use the raw connection to bypass AsyncLocalStorage and set up exact prefixes
+  const prefix = `store_${slug}_`;
+  
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}patients (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         clinic_id INTEGER,
         name TEXT NOT NULL,
@@ -51,8 +105,9 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS appointments (
+  
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}appointments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         clinic_id INTEGER,
         patient_id INTEGER,
@@ -63,16 +118,18 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS anamnesis (
+
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}anamnesis (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
         content TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS photos (
+
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}photos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
         type TEXT,
@@ -81,8 +138,9 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS consent_forms (
+
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}consent_forms (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
         title TEXT,
@@ -91,8 +149,9 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS financial (
+
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}financial (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         clinic_id INTEGER,
         patient_id INTEGER,
@@ -105,8 +164,9 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS packages (
+
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}packages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
         name TEXT,
@@ -116,8 +176,8 @@ async function initDb() {
     );
   `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS catalog_items (
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}catalog_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,
         name TEXT NOT NULL,
@@ -129,14 +189,8 @@ async function initDb() {
     );
   `);
 
-  try {
-    await db.execute("ALTER TABLE catalog_items ADD COLUMN stock INTEGER DEFAULT NULL");
-  } catch (e) {
-    // Column already exists or table doesn't exist yet
-  }
-  
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS budgets (
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}budgets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
         total_amount REAL NOT NULL,
@@ -146,8 +200,8 @@ async function initDb() {
     );
   `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS budget_items (
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}budget_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         budget_id INTEGER,
         item_id INTEGER,
@@ -157,24 +211,15 @@ async function initDb() {
     );
   `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS anamnesis (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        patient_id INTEGER,
-        content TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS settings (
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}settings (
         key TEXT PRIMARY KEY,
         value TEXT
     );
   `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS client_notifications (
+  await rawDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}client_notifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
         title TEXT,
@@ -183,27 +228,88 @@ async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  
-  // Seed initial clinic if empty
-  const rs = await db.execute("SELECT * FROM clinics");
-  if (rs.rows.length === 0) {
-    await db.execute("INSERT INTO clinics (name) VALUES ('Clínica Principal')");
-  }
 
-  // Seed default business hours settings
-  const checkSettings = await db.execute("SELECT * FROM settings WHERE key = 'schedule_hours'");
+  // Seed default business hours settings for this store
+  const checkSettings = await rawDb.execute(`SELECT * FROM ${prefix}settings WHERE key = 'schedule_hours'`);
   if (checkSettings.rows.length === 0) {
-    await db.execute({
-      sql: "INSERT INTO settings (key, value) VALUES (?, ?)",
+    await rawDb.execute({
+      sql: `INSERT INTO ${prefix}settings (key, value) VALUES (?, ?)`,
       args: ['schedule_hours', JSON.stringify({
         start: '08:00',
         end: '18:00',
         interval: 30,
-        workdays: [1, 2, 3, 4, 5] // Monday-Friday
+        workdays: [1, 2, 3, 4, 5]
       })]
     });
   }
 }
+
+async function transitionExistingData() {
+  // Ensure the default 'principal' clinic exists in the clinics master table
+  const checkPrincipal = await rawDb.execute("SELECT * FROM clinics WHERE slug = 'principal'");
+  if (checkPrincipal.rows.length === 0) {
+    const clinicsRes = await rawDb.execute("SELECT * FROM clinics");
+    if (clinicsRes.rows.length > 0) {
+      const id = clinicsRes.rows[0].id;
+      await rawDb.execute({
+        sql: "UPDATE clinics SET slug = ?, admin_email = ?, admin_password = ? WHERE id = ?",
+        args: ['principal', 'admin@gestto.com', 'admin', id]
+      });
+    } else {
+      await rawDb.execute({
+        sql: "INSERT INTO clinics (name, slug, admin_email, admin_password) VALUES (?, ?, ?, ?)",
+        args: ['Clínica Principal', 'principal', 'admin@gestto.com', 'admin']
+      });
+    }
+  }
+
+  // Build tables for default 'principal' clinic
+  await createStoreTables('principal');
+
+  // Migrate legacy records (from global un-prefixed tables to prefixed tables)
+  const tables = [
+    'patients', 'appointments', 'financial', 'packages', 'catalog_items', 
+    'budgets', 'budget_items', 'anamnesis', 'photos', 'consent_forms', 
+    'settings', 'client_notifications'
+  ];
+
+  for (const t of tables) {
+    try {
+      const countNew = await rawDb.execute(`SELECT COUNT(*) as count FROM store_principal_${t}`);
+      const hasNewRows = (countNew.rows[0]?.count as number) > 0;
+      if (!hasNewRows) {
+        const oldRows = await rawDb.execute(`SELECT * FROM ${t}`);
+        if (oldRows.rows.length > 0) {
+          console.log(`[Transition] Migrating ${oldRows.rows.length} rows from ${t} to store_principal_${t}`);
+          for (const row of oldRows.rows) {
+            const keys = Object.keys(row);
+            const placeholders = keys.map(() => '?').join(', ');
+            const values = keys.map(k => row[k]);
+            await rawDb.execute({
+              sql: `INSERT INTO store_principal_${t} (${keys.join(', ')}) VALUES (${placeholders})`,
+              args: values
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Legacy table might not exist or already migrated
+    }
+  }
+}
+
+async function migrateAllStores() {
+  const result = await rawDb.execute("SELECT slug FROM clinics WHERE slug IS NOT NULL");
+  for (const row of result.rows) {
+    const slug = row.slug as string;
+    try {
+      await createStoreTables(slug);
+    } catch (err) {
+      console.error(`[Migration] Error migrating store ${slug}:`, err);
+    }
+  }
+}
+
 
 async function runDataCleanup() {
   try {
@@ -225,15 +331,12 @@ async function runDataCleanup() {
     }
 
     if (!enabled) {
-      console.log("[Cleanup] Automatic data cleanup is disabled.");
       return;
     }
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
-
-    console.log(`[Cleanup] Running automatic data cleanup. Cutoff date (older than ${retentionDays} days): ${cutoffStr}`);
 
     // Clean up appointments
     await db.execute({
@@ -253,9 +356,24 @@ async function runDataCleanup() {
       args: [`${cutoffStr} 00:00:00`]
     });
 
-    console.log(`[Cleanup] Done. Cleared old records older than ${retentionDays} days.`);
   } catch (err) {
-    console.error("[Cleanup] Error running automatic cleanup:", err);
+    console.error("[Cleanup] Error running automatic cleanup for active store:", err);
+  }
+}
+
+async function runDataCleanupAllStores() {
+  try {
+    const clinics = await rawDb.execute("SELECT slug FROM clinics WHERE slug IS NOT NULL");
+    console.log(`[Cleanup] Starting multi-store cleanup for ${clinics.rows.length} stores...`);
+    for (const row of clinics.rows) {
+      const slug = row.slug as string;
+      await storeStorage.run({ slug }, async () => {
+        await runDataCleanup();
+      });
+    }
+    console.log("[Cleanup] Multi-store cleanup completed successfully.");
+  } catch (err) {
+    console.error("[Cleanup] Error in runDataCleanupAllStores:", err);
   }
 }
 
@@ -264,12 +382,13 @@ async function startServer() {
 
   // Initialize automatic data cleanup on startup and schedule it daily
   setTimeout(() => {
-    runDataCleanup().catch(err => console.error("Startup Cleanup Error:", err));
+    runDataCleanupAllStores().catch(err => console.error("Startup Cleanup Error:", err));
   }, 5000);
   const ONEDAY_MS = 24 * 60 * 60 * 1000;
   setInterval(() => {
-    runDataCleanup().catch(err => console.error("Periodic Cleanup Error:", err));
+    runDataCleanupAllStores().catch(err => console.error("Periodic Cleanup Error:", err));
   }, ONEDAY_MS);
+
 
   const app = express();
   const PORT = 3000;
@@ -278,15 +397,126 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' })); // For base64 signatures
   app.use('/uploads', express.static(uploadDir)); // Serve uploaded files
 
-  // API Routes
+  // Store context interceptor middleware
+  app.use((req, res, next) => {
+    let slug = req.headers['x-store-slug'];
+    if (!slug && req.headers.referer) {
+      const referer = String(req.headers.referer);
+      const match = referer.match(/\/loja\/([^/]+)/);
+      if (match) {
+        slug = match[1];
+      }
+    }
+    if (!slug) {
+      slug = 'principal';
+    }
+    storeStorage.run({ slug: String(slug) }, () => {
+      next();
+    });
+  });
+
+  // Multi-Store Management Routes
   
-  // Clinics
+  // List all registered stores
+  app.get("/api/stores", async (req, res) => {
+    try {
+      const result = await rawDb.execute("SELECT id, name, slug FROM clinics WHERE slug IS NOT NULL ORDER BY id DESC");
+      res.json(result.rows);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Create/Register a new store
+  app.post("/api/stores/register", async (req, res) => {
+    const { name, slug, admin_email, admin_password } = req.body;
+
+    if (!name || !slug || !admin_email || !admin_password) {
+      return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+    }
+
+    const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '');
+    
+    // Reserve system keywords
+    const reservedSlugs = ['api', 'portal', 'dashboard', 'settings', 'patients', 'financial', 'catalog', 'pdv', 'loja', 'principal'];
+    if (reservedSlugs.includes(cleanSlug)) {
+      return res.status(400).json({ error: "Este link da loja é reservado e não pode ser utilizado." });
+    }
+
+    try {
+      // Check if slug or email already exists
+      const checkSlug = await rawDb.execute({
+        sql: "SELECT id FROM clinics WHERE slug = ?",
+        args: [cleanSlug]
+      });
+      if (checkSlug.rows.length > 0) {
+        return res.status(400).json({ error: "Já existe uma clínica com este link. Escolha outro." });
+      }
+
+      const checkEmail = await rawDb.execute({
+        sql: "SELECT id FROM clinics WHERE admin_email = ?",
+        args: [admin_email]
+      });
+      if (checkEmail.rows.length > 0) {
+        return res.status(400).json({ error: "Este e-mail administrativo já está cadastrado." });
+      }
+
+      // Initialize store tables dynamically
+      await createStoreTables(cleanSlug);
+
+      // Insert new clinic row
+      await rawDb.execute({
+        sql: "INSERT INTO clinics (name, slug, admin_email, admin_password) VALUES (?, ?, ?, ?)",
+        args: [name, cleanSlug, admin_email, admin_password]
+      });
+
+      res.status(201).json({ success: true, slug: cleanSlug });
+    } catch (e: any) {
+      res.status(500).json({ error: `Erro no servidor: ${e.message}` });
+    }
+  });
+
+  // Administrator login per store
+  app.post("/api/stores/login", async (req, res) => {
+    const { admin_email, admin_password } = req.body;
+
+    if (!admin_email || !admin_password) {
+      return res.status(400).json({ error: "Preencha o e-mail e a senha." });
+    }
+
+    try {
+      const result = await rawDb.execute({
+        sql: "SELECT name, slug, admin_password FROM clinics WHERE admin_email = ?",
+        args: [admin_email]
+      });
+
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: "E-mail ou senha inválidos." });
+      }
+
+      const clinic = result.rows[0];
+      if (clinic.admin_password !== admin_password) {
+        return res.status(401).json({ error: "E-mail ou senha inválidos." });
+      }
+
+      res.json({
+        success: true,
+        slug: clinic.slug,
+        name: clinic.name
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Legacy Clinics Endpoint (keeps compatibility)
   app.get("/api/clinics", async (req, res) => {
     try {
-      const result = await db.execute("SELECT * FROM clinics");
+      const result = await rawDb.execute("SELECT * FROM clinics");
       res.json(result.rows);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+
 
   // Patients
   app.get("/api/patients", async (req, res) => {

@@ -14,17 +14,28 @@ import Financial from './pages/Financial';
 import Catalog from './pages/Catalog';
 import PDV from './pages/PDV';
 import ClientPortal from './pages/ClientPortal';
+import Landpage from './pages/Landpage';
+import { AdminGuard } from './components/AdminGuard';
+import { setupFetchOverride } from './utils/multiStore';
+
+// Enable global multi-store fetch header override
+setupFetchOverride();
 
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const isPortal = location.pathname.startsWith('/portal');
+  const isPortal = location.pathname.includes('/portal');
+
+  if (location.pathname === '/') {
+    return <Landpage />;
+  }
 
   if (isPortal) {
     return (
       <div className="min-h-screen bg-neutral-50 text-gray-900 font-sans">
         <Routes>
           <Route path="/portal" element={<ClientPortal />} />
+          <Route path="/loja/:slug/portal" element={<ClientPortal />} />
         </Routes>
       </div>
     );
@@ -55,13 +66,23 @@ function AppContent() {
         </div>
         
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/patients" element={<Patients />} />
-          <Route path="/patients/:id" element={<PatientDetails />} />
-          <Route path="/financial" element={<Financial />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/pdv" element={<PDV />} />
+          <Route path="/dashboard" element={<AdminGuard><Dashboard /></AdminGuard>} />
+          <Route path="/patients" element={<AdminGuard><Patients /></AdminGuard>} />
+          <Route path="/patients/:id" element={<AdminGuard><PatientDetails /></AdminGuard>} />
+          <Route path="/financial" element={<AdminGuard><Financial /></AdminGuard>} />
+          <Route path="/catalog" element={<AdminGuard><Catalog /></AdminGuard>} />
+          <Route path="/pdv" element={<AdminGuard><PDV /></AdminGuard>} />
+          
+          {/* Multi-Store admin routes */}
+          <Route path="/loja/:slug" element={<Navigate to="dashboard" replace />} />
+          <Route path="/loja/:slug/dashboard" element={<AdminGuard><Dashboard /></AdminGuard>} />
+          <Route path="/loja/:slug/patients" element={<AdminGuard><Patients /></AdminGuard>} />
+          <Route path="/loja/:slug/patients/:id" element={<AdminGuard><PatientDetails /></AdminGuard>} />
+          <Route path="/loja/:slug/financial" element={<AdminGuard><Financial /></AdminGuard>} />
+          <Route path="/loja/:slug/catalog" element={<AdminGuard><Catalog /></AdminGuard>} />
+          <Route path="/loja/:slug/pdv" element={<AdminGuard><PDV /></AdminGuard>} />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>

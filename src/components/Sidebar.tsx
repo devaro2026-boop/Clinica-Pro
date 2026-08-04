@@ -1,25 +1,37 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, CircleDollarSign, LogOut, X, Package, ShoppingCart, Globe } from 'lucide-react';
+import { getActiveStoreSlug } from '../utils/multiStore';
 
 export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void }) {
+  const slug = getActiveStoreSlug();
+  const prefix = slug ? `/loja/${slug}` : '';
+
   const navItems = [
-    { to: "/dashboard", icon: LayoutDashboard, label: "Agenda & Dashboard" },
-    { to: "/patients", icon: Users, label: "Clientes & Pacientes" },
-    { to: "/catalog", icon: Package, label: "Serviços e Produtos" },
-    { to: "/pdv", icon: ShoppingCart, label: "Frente de Caixa (PDV)" },
-    { to: "/financial", icon: CircleDollarSign, label: "Financeiro & Caixa" },
+    { to: `${prefix}/dashboard`, icon: LayoutDashboard, label: "Agenda & Dashboard" },
+    { to: `${prefix}/patients`, icon: Users, label: "Clientes & Pacientes" },
+    { to: `${prefix}/catalog`, icon: Package, label: "Serviços e Produtos" },
+    { to: `${prefix}/pdv`, icon: ShoppingCart, label: "Frente de Caixa (PDV)" },
+    { to: `${prefix}/financial`, icon: CircleDollarSign, label: "Financeiro & Caixa" },
   ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('gestto_admin_session');
+    localStorage.removeItem('active_store_slug');
+    window.location.href = '/';
+  };
+
+  const portalUrl = slug ? `/loja/${slug}/portal` : '/portal';
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
       <div className="p-6 border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#cfbea5] via-[#ebdcd0] to-[#dfd3c3] flex items-center justify-center text-[#5c4f3c] font-black text-xl shadow-md shadow-amber-100/40">
-            G
+            {slug ? slug.charAt(0).toUpperCase() : 'G'}
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight lowercase">gestto</h1>
-            <p className="text-[10px] uppercase font-bold text-[#a89070] tracking-wider">Estética & Salão</p>
+            <p className="text-[10px] uppercase font-bold text-[#a89070] tracking-wider">{slug || 'Estética & Salão'}</p>
           </div>
         </div>
         {closeSidebar && (
@@ -53,7 +65,7 @@ export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void })
         <p className="text-[10px] uppercase font-bold text-[#a89070] tracking-wider">Link do Portal do Cliente</p>
         <p className="text-[11px] text-gray-600 leading-normal">Seus clientes podem realizar agendamentos online por este link:</p>
         <a 
-          href="/portal" 
+          href={portalUrl} 
           target="_blank" 
           rel="noopener noreferrer" 
           className="flex items-center justify-between text-xs font-bold text-[#968065] hover:text-[#7d674c] bg-white border border-[#ebdcd0] px-3 py-2 rounded-xl transition-all shadow-xs"
@@ -64,7 +76,10 @@ export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void })
       </div>
 
       <div className="p-4 border-t border-gray-100">
-        <button className="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:text-red-600 w-full rounded-xl hover:bg-gray-50 transition-colors">
+        <button 
+          onClick={handleLogout}
+          className="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:text-red-600 w-full rounded-xl hover:bg-gray-50 transition-colors"
+        >
           <LogOut className="w-5 h-5" />
           <span>Sair</span>
         </button>
