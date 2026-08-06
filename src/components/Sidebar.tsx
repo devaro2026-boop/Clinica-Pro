@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CircleDollarSign, LogOut, X, Package, ShoppingCart, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, CircleDollarSign, LogOut, X, Package, ShoppingCart, Globe, CreditCard } from 'lucide-react';
 import { getActiveStoreSlug } from '../utils/multiStore';
 
 export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void }) {
@@ -12,6 +12,7 @@ export default function Sidebar({ closeSidebar }: { closeSidebar?: () => void })
     { to: `${prefix}/catalog`, icon: Package, label: "Serviços e Produtos" },
     { to: `${prefix}/pdv`, icon: ShoppingCart, label: "Frente de Caixa (PDV)" },
     { to: `${prefix}/financial`, icon: CircleDollarSign, label: "Financeiro & Caixa" },
+    { to: `${prefix}/billing`, icon: CreditCard, label: "Mensalidade & Assinatura" },
   ];
 
   const handleLogout = () => {

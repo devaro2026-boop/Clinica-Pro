@@ -14,7 +14,7 @@ const storeStorage = new AsyncLocalStorage<{ slug: string }>();
 const tablesToPrefix = [
   'patients', 'appointments', 'financial', 'packages', 'catalog_items', 
   'budgets', 'budget_items', 'anamnesis', 'photos', 'consent_forms', 
-  'settings', 'client_notifications'
+  'settings', 'client_notifications', 'hub_messages'
 ];
 
 // Initialize DB Client (Internal Raw Connection)
@@ -26,22 +26,59 @@ const rawDb = createClient({
   authToken: dbAuthToken,
 });
 
-// Proxy wrapper for db to support multi-store dynamic routing
+// Cache for external database clients per clinic
+const storeDbClients = new Map<string, any>();
+
+async function getDbClientForSlug(slug: string): Promise<any> {
+  if (!slug || slug === 'principal') return rawDb;
+  if (storeDbClients.has(slug)) return storeDbClients.get(slug);
+
+  try {
+    const res = await rawDb.execute({
+      sql: "SELECT db_url, db_token FROM clinics WHERE slug = ?",
+      args: [slug]
+    });
+    if (res.rows.length > 0) {
+      const row = res.rows[0];
+      const url = row.db_url ? String(row.db_url).trim() : null;
+      const token = row.db_token ? String(row.db_token).trim() : null;
+      if (url) {
+        console.log(`[DB Pool] Establishing custom Turso connection for: ${slug}, url: ${url}`);
+        const client = createClient({
+          url,
+          authToken: token || undefined
+        });
+        storeDbClients.set(slug, client);
+        return client;
+      }
+    }
+  } catch (e) {
+    console.error(`Error loading custom database configuration for ${slug}:`, e);
+  }
+  return rawDb;
+}
+
+// Proxy wrapper for db to support multi-store dynamic routing and custom isolated databases
 const db = {
   execute: async (query: any) => {
     let sql = typeof query === 'string' ? query : query.sql;
     const args = typeof query === 'string' ? [] : (query.args || []);
     
     const context = storeStorage.getStore();
+    let client = rawDb;
     if (context && context.slug) {
       const slug = context.slug;
+      
+      // Dynamic connection router
+      client = await getDbClientForSlug(slug);
+      
       for (const table of tablesToPrefix) {
         const regex = new RegExp(`\\b${table}\\b`, 'gi');
         sql = sql.replace(regex, `store_${slug}_${table}`);
       }
     }
     
-    return rawDb.execute({ sql, args });
+    return client.execute({ sql, args });
   }
 };
 
@@ -72,7 +109,13 @@ async function initDb() {
         slug TEXT UNIQUE,
         admin_email TEXT UNIQUE,
         admin_password TEXT,
-        created_at DATETIME
+        created_at DATETIME,
+        db_url TEXT,
+        db_token TEXT,
+        billing_status TEXT DEFAULT 'pago',
+        billing_due_date TEXT,
+        billing_last_paid TEXT,
+        is_blocked INTEGER DEFAULT 0
     );
   `);
 
@@ -81,6 +124,12 @@ async function initDb() {
   try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN admin_email TEXT"); } catch(e){}
   try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN admin_password TEXT"); } catch(e){}
   try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN created_at DATETIME"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN db_url TEXT"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN db_token TEXT"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN billing_status TEXT DEFAULT 'pago'"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN billing_due_date TEXT"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN billing_last_paid TEXT"); } catch(e){}
+  try { await rawDb.execute("ALTER TABLE clinics ADD COLUMN is_blocked INTEGER DEFAULT 0"); } catch(e){}
 
   // Run data transition for legacy data (ensure backward compatibility)
   await transitionExistingData().catch(e => console.error("Legacy transition error:", e));
@@ -89,11 +138,11 @@ async function initDb() {
   await migrateAllStores().catch(e => console.error("Periodic migration error:", e));
 }
 
-async function createStoreTables(slug: string) {
-  // Use the raw connection to bypass AsyncLocalStorage and set up exact prefixes
+async function createStoreTables(slug: string, targetDb: any = rawDb) {
+  // Use the custom target connection to support external and isolated database structures
   const prefix = `store_${slug}_`;
   
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}patients (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         clinic_id INTEGER,
@@ -106,7 +155,7 @@ async function createStoreTables(slug: string) {
     );
   `);
   
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}appointments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         clinic_id INTEGER,
@@ -119,7 +168,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}anamnesis (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
@@ -128,7 +177,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}photos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
@@ -139,7 +188,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}consent_forms (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
@@ -150,7 +199,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}financial (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         clinic_id INTEGER,
@@ -165,7 +214,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}packages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
@@ -176,7 +225,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}catalog_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,
@@ -189,7 +238,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}budgets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
@@ -200,7 +249,7 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}budget_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         budget_id INTEGER,
@@ -211,14 +260,14 @@ async function createStoreTables(slug: string) {
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}settings (
         key TEXT PRIMARY KEY,
         value TEXT
     );
   `);
 
-  await rawDb.execute(`
+  await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}client_notifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         patient_id INTEGER,
@@ -229,10 +278,21 @@ async function createStoreTables(slug: string) {
     );
   `);
 
+  await targetDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}hub_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        type TEXT DEFAULT 'announcement',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   // Seed default business hours settings for this store
-  const checkSettings = await rawDb.execute(`SELECT * FROM ${prefix}settings WHERE key = 'schedule_hours'`);
+  const checkSettings = await targetDb.execute(`SELECT * FROM ${prefix}settings WHERE key = 'schedule_hours'`);
   if (checkSettings.rows.length === 0) {
-    await rawDb.execute({
+    await targetDb.execute({
       sql: `INSERT INTO ${prefix}settings (key, value) VALUES (?, ?)`,
       args: ['schedule_hours', JSON.stringify({
         start: '08:00',
@@ -397,8 +457,8 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' })); // For base64 signatures
   app.use('/uploads', express.static(uploadDir)); // Serve uploaded files
 
-  // Store context interceptor middleware
-  app.use((req, res, next) => {
+  // Store context interceptor middleware with blocking check support
+  app.use(async (req, res, next) => {
     let slug = req.headers['x-store-slug'];
     if (!slug && req.headers.referer) {
       const referer = String(req.headers.referer);
@@ -410,6 +470,25 @@ async function startServer() {
     if (!slug) {
       slug = 'principal';
     }
+
+    // Block non-billing API requests if the store is in active blocked state
+    if (slug && slug !== 'principal' && req.path.startsWith('/api/') && !req.path.includes('/billing') && !req.path.includes('/stores') && !req.path.includes('/hub')) {
+      try {
+        const checkBlocked = await rawDb.execute({
+          sql: "SELECT is_blocked FROM clinics WHERE slug = ?",
+          args: [String(slug)]
+        });
+        if (checkBlocked.rows.length > 0 && checkBlocked.rows[0].is_blocked === 1) {
+          return res.status(403).json({
+            error: 'STORE_BLOCKED',
+            message: 'Esta loja está bloqueada devido a pendências de mensalidade. Por favor, regularize o pagamento.'
+          });
+        }
+      } catch (err) {
+        console.error("Error verifying block status in middleware:", err);
+      }
+    }
+
     storeStorage.run({ slug: String(slug) }, () => {
       next();
     });
@@ -429,7 +508,7 @@ async function startServer() {
 
   // Create/Register a new store
   app.post("/api/stores/register", async (req, res) => {
-    const { name, slug, admin_email, admin_password } = req.body;
+    const { name, slug, admin_email, admin_password, db_url, db_token } = req.body;
 
     if (!name || !slug || !admin_email || !admin_password) {
       return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
@@ -438,7 +517,7 @@ async function startServer() {
     const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '');
     
     // Reserve system keywords
-    const reservedSlugs = ['api', 'portal', 'dashboard', 'settings', 'patients', 'financial', 'catalog', 'pdv', 'loja', 'principal'];
+    const reservedSlugs = ['api', 'portal', 'dashboard', 'settings', 'patients', 'financial', 'packages', 'catalog', 'pdv', 'loja', 'principal'];
     if (reservedSlugs.includes(cleanSlug)) {
       return res.status(400).json({ error: "Este link da loja é reservado e não pode ser utilizado." });
     }
@@ -461,13 +540,43 @@ async function startServer() {
         return res.status(400).json({ error: "Este e-mail administrativo já está cadastrado." });
       }
 
+      // Initialize database client target (either custom isolated or global internal raw connection)
+      let targetDb = rawDb;
+      if (db_url && db_url.trim()) {
+        try {
+          console.log(`[Register] Testing connection to custom db URL: ${db_url}`);
+          targetDb = createClient({
+            url: db_url.trim(),
+            authToken: db_token ? db_token.trim() : undefined
+          });
+          // Do a test execute
+          await targetDb.execute("SELECT 1");
+          // Cache it for pooling
+          storeDbClients.set(cleanSlug, targetDb);
+        } catch (err: any) {
+          return res.status(400).json({ error: `Conexão falhou com o Banco de Dados fornecido: ${err.message}` });
+        }
+      }
+
       // Initialize store tables dynamically
-      await createStoreTables(cleanSlug);
+      await createStoreTables(cleanSlug, targetDb);
+
+      const trialDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // Insert new clinic row
       await rawDb.execute({
-        sql: "INSERT INTO clinics (name, slug, admin_email, admin_password) VALUES (?, ?, ?, ?)",
-        args: [name, cleanSlug, admin_email, admin_password]
+        sql: `INSERT INTO clinics (
+                name, slug, admin_email, admin_password, created_at, db_url, db_token, billing_status, billing_due_date, is_blocked
+              ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, 'pago', ?, 0)`,
+        args: [
+          name, 
+          cleanSlug, 
+          admin_email, 
+          admin_password, 
+          db_url ? db_url.trim() : null, 
+          db_token ? db_token.trim() : null,
+          trialDueDate
+        ]
       });
 
       res.status(201).json({ success: true, slug: cleanSlug });
@@ -486,7 +595,7 @@ async function startServer() {
 
     try {
       const result = await rawDb.execute({
-        sql: "SELECT name, slug, admin_password FROM clinics WHERE admin_email = ?",
+        sql: "SELECT name, slug, admin_password, is_blocked FROM clinics WHERE admin_email = ?",
         args: [admin_email]
       });
 
@@ -502,8 +611,350 @@ async function startServer() {
       res.json({
         success: true,
         slug: clinic.slug,
-        name: clinic.name
+        name: clinic.name,
+        is_blocked: clinic.is_blocked === 1
       });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ==========================================
+  // HUB CENTRAL (SUPER-ADMIN) ENDPOINTS
+  // ==========================================
+
+  // List all clinics in detail (Hub Dashboard)
+  app.get("/api/hub/clinics", async (req, res) => {
+    try {
+      const result = await rawDb.execute("SELECT * FROM clinics WHERE slug IS NOT NULL ORDER BY id DESC");
+      res.json(result.rows);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Update clinic details (billing, db credentials, status, blocked)
+  app.put("/api/hub/clinics/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name, db_url, db_token, billing_status, billing_due_date, is_blocked } = req.body;
+
+    try {
+      const clinicRes = await rawDb.execute({
+        sql: "SELECT slug FROM clinics WHERE id = ?",
+        args: [id]
+      });
+
+      if (clinicRes.rows.length === 0) {
+        return res.status(404).json({ error: "Clínica não encontrada." });
+      }
+
+      const slug = clinicRes.rows[0].slug as string;
+
+      // Update in master clinics database table
+      await rawDb.execute({
+        sql: `UPDATE clinics SET 
+                name = ?, 
+                db_url = ?, 
+                db_token = ?, 
+                billing_status = ?, 
+                billing_due_date = ?, 
+                is_blocked = ? 
+              WHERE id = ?`,
+        args: [
+          name, 
+          db_url ? db_url.trim() : null, 
+          db_token ? db_token.trim() : null, 
+          billing_status || 'pago', 
+          billing_due_date || null, 
+          is_blocked ? 1 : 0, 
+          id
+        ]
+      });
+
+      // Evict old client cache connection
+      storeDbClients.delete(slug);
+
+      // Try migrating new database structure if they just added a database
+      if (db_url) {
+        try {
+          const client = await getDbClientForSlug(slug);
+          await createStoreTables(slug, client);
+        } catch (e) {
+          console.error(`Error migrating store ${slug} to new database:`, e);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Send messages from Hub (Bulk or Single)
+  app.post("/api/hub/messages", async (req, res) => {
+    const { target, title, message, type } = req.body; // target: 'all' or specific slug
+
+    if (!title || !message) {
+      return res.status(400).json({ error: "Título e mensagem são obrigatórios." });
+    }
+
+    try {
+      let targets: string[] = [];
+      if (target === 'all') {
+        const clinicsRes = await rawDb.execute("SELECT slug FROM clinics WHERE slug IS NOT NULL AND slug != 'principal'");
+        targets = clinicsRes.rows.map(r => r.slug as string);
+      } else {
+        targets = [target];
+      }
+
+      let successCount = 0;
+      for (const slug of targets) {
+        try {
+          const prefix = `store_${slug}_`;
+          const client = await getDbClientForSlug(slug);
+          await client.execute({
+            sql: `INSERT INTO ${prefix}hub_messages (title, message, type) VALUES (?, ?, ?)`,
+            args: [title, message, type || 'announcement']
+          });
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to send message to clinic database: ${slug}`, err);
+        }
+      }
+
+      res.json({ success: true, message: `Mensagem enviada com sucesso para ${successCount} de ${targets.length} clínicas.` });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ==========================================
+  // STORE BILLING & MESSAGES CLIENT ENDPOINTS
+  // ==========================================
+
+  // Get active store billing info
+  app.get("/api/billing/info", async (req, res) => {
+    const context = storeStorage.getStore();
+    if (!context || !context.slug) {
+      return res.status(400).json({ error: "Sem contexto de loja ativo." });
+    }
+    const slug = context.slug;
+
+    try {
+      const result = await rawDb.execute({
+        sql: "SELECT billing_status, billing_due_date, billing_last_paid, is_blocked FROM clinics WHERE slug = ?",
+        args: [slug]
+      });
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: "Clínica não encontrada." });
+      }
+
+      const info = result.rows[0];
+      res.json({
+        billing_status: info.billing_status || 'pago',
+        billing_due_date: info.billing_due_date || '',
+        billing_last_paid: info.billing_last_paid || '',
+        is_blocked: info.is_blocked === 1,
+        monthly_fee: 149.90
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Perform Pix Payment (Mercado Pago integration simulation)
+  app.post("/api/billing/pay", async (req, res) => {
+    const context = storeStorage.getStore();
+    if (!context || !context.slug) {
+      return res.status(400).json({ error: "Sem contexto de loja ativo." });
+    }
+    const slug = context.slug;
+
+    try {
+      const clinicRes = await rawDb.execute({
+        sql: "SELECT billing_due_date FROM clinics WHERE slug = ?",
+        args: [slug]
+      });
+
+      if (clinicRes.rows.length === 0) {
+        return res.status(404).json({ error: "Clínica não encontrada." });
+      }
+
+      const currentDue = clinicRes.rows[0].billing_due_date as string;
+      let newDue = new Date();
+      if (currentDue) {
+        const parsedDue = new Date(currentDue);
+        if (parsedDue > new Date()) {
+          newDue = new Date(parsedDue.getTime() + 30 * 24 * 60 * 60 * 1000);
+        } else {
+          newDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        }
+      } else {
+        newDue = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      }
+
+      const formattedNewDue = newDue.toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // Update in master clinics table
+      await rawDb.execute({
+        sql: "UPDATE clinics SET billing_status = 'pago', billing_due_date = ?, billing_last_paid = ?, is_blocked = 0 WHERE slug = ?",
+        args: [formattedNewDue, todayStr, slug]
+      });
+
+      // Insert billing confirmation inside store's messages
+      try {
+        const prefix = `store_${slug}_`;
+        const client = await getDbClientForSlug(slug);
+        await client.execute({
+          sql: `INSERT INTO ${prefix}hub_messages (title, message, type) VALUES (?, ?, 'billing')`,
+          args: [
+            'Mensalidade Quitada!', 
+            `A mensalidade do seu painel Gestto foi quitada com sucesso via Mercado Pago (Pix). Acesso prorrogado até o dia ${formattedNewDue.split('-').reverse().join('/')}. Obrigado por utilizar nossa plataforma!`,
+            'billing'
+          ]
+        });
+
+        // Add expense log inside store's financial table
+        await client.execute({
+          sql: `INSERT INTO ${prefix}financial (description, amount, type, payment_method, status, date) VALUES (?, ?, ?, ?, ?, ?)`,
+          args: [
+            'Assinatura Mensal Gestto Multi-Lojas',
+            149.90,
+            'expense',
+            'pix',
+            'paid',
+            todayStr
+          ]
+        });
+      } catch (err) {
+        console.error("Error logging local financial entry for paid billing:", err);
+      }
+
+      res.json({
+        success: true,
+        message: "Mensalidade quitada com sucesso!",
+        new_due_date: formattedNewDue
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // List notifications unified for store bell
+  app.get("/api/notifications/bell", async (req, res) => {
+    const context = storeStorage.getStore();
+    if (!context || !context.slug) {
+      return res.status(400).json({ error: "Sem contexto de loja ativo." });
+    }
+    const slug = context.slug;
+
+    try {
+      const list: any[] = [];
+
+      // 1. Unconfirmed / Pending Appointments
+      try {
+        const appointments = await db.execute("SELECT id, date, time, description, status FROM appointments WHERE status = 'pending' ORDER BY date ASC, time ASC LIMIT 10");
+        for (const appt of appointments.rows) {
+          list.push({
+            id: `appt_${appt.id}`,
+            originalId: appt.id,
+            type: 'appointment',
+            title: 'Novo Agendamento Recebido',
+            message: `${appt.description || 'Consulta'} marcada para dia ${appt.date} às ${appt.time}.`,
+            created_at: new Date().toISOString(),
+            is_read: 0
+          });
+        }
+      } catch (e) {
+        console.error("Bell fetch appointments error:", e);
+      }
+
+      // 2. Unread Hub messages
+      try {
+        const hubMessages = await db.execute("SELECT id, title, message, type, created_at, is_read FROM hub_messages WHERE is_read = 0 ORDER BY id DESC LIMIT 10");
+        for (const msg of hubMessages.rows) {
+          list.push({
+            id: `msg_${msg.id}`,
+            originalId: msg.id,
+            type: 'hub_message',
+            title: msg.title,
+            message: msg.message,
+            created_at: msg.created_at,
+            is_read: msg.is_read
+          });
+        }
+      } catch (e) {
+        console.error("Bell fetch hub messages error:", e);
+      }
+
+      // 3. Billing alert
+      try {
+        const billing = await rawDb.execute({
+          sql: "SELECT billing_status, billing_due_date, is_blocked FROM clinics WHERE slug = ?",
+          args: [slug]
+        });
+
+        if (billing.rows.length > 0) {
+          const info = billing.rows[0];
+          const dueDateStr = info.billing_due_date as string;
+          if (dueDateStr) {
+            const dueDate = new Date(dueDateStr);
+            const diffDays = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            
+            if (info.is_blocked === 1) {
+              list.push({
+                id: 'billing_blocked',
+                type: 'billing',
+                title: 'CONTA BLOQUEADA',
+                message: 'Seu acesso foi temporariamente suspenso por falta de pagamento. Clique para pagar via Pix.',
+                created_at: new Date().toISOString(),
+                is_read: 0
+              });
+            } else if (info.billing_status === 'atraso' || diffDays <= 5) {
+              list.push({
+                id: 'billing_warning',
+                type: 'billing',
+                title: 'Vencimento de Mensalidade',
+                message: diffDays <= 0 
+                  ? 'Sua mensalidade de R$ 149,90 venceu. Pague para evitar bloqueios.' 
+                  : `A mensalidade de R$ 149,90 vence em ${diffDays} dias (${dueDateStr.split('-').reverse().join('/')}).`,
+                created_at: new Date().toISOString(),
+                is_read: 0
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Bell fetch billing info error:", e);
+      }
+
+      res.json(list);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Get store hub messages list
+  app.get("/api/hub-messages", async (req, res) => {
+    try {
+      const result = await db.execute("SELECT * FROM hub_messages ORDER BY id DESC LIMIT 50");
+      res.json(result.rows);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Mark store hub message as read
+  app.post("/api/hub-messages/:id/read", async (req, res) => {
+    const { id } = req.params;
+    try {
+      await db.execute({
+        sql: "UPDATE hub_messages SET is_read = 1 WHERE id = ?",
+        args: [id]
+      });
+      res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
