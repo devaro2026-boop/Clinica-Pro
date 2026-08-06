@@ -33,6 +33,12 @@ export default function Landpage() {
     return localStorage.getItem('gestto_hub_google_user');
   });
 
+  // Login Form states for secure access control
+  const [loginEmail, setLoginEmail] = useState('devaro2026@gmail.com');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -89,10 +95,41 @@ export default function Landpage() {
     }
   }, [googleUser]);
 
-  // Handle manual Google sign in
-  const handleGoogleLogin = (email: string) => {
-    localStorage.setItem('gestto_hub_google_user', email);
-    setGoogleUser(email);
+  // Handle Hub Login via API validation
+  const handleHubLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPassword) {
+      setLoginError('Por favor, selecione seu e-mail e digite a senha.');
+      return;
+    }
+    setLoginError('');
+    setLoggingIn(true);
+
+    try {
+      const res = await fetch('/api/hub/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao efetuar login.');
+      }
+
+      localStorage.setItem('gestto_hub_google_user', data.email);
+      setGoogleUser(data.email);
+      setLoginPassword('');
+    } catch (err: any) {
+      setLoginError(err.message || 'Erro ao conectar com o servidor.');
+    } finally {
+      setLoggingIn(false);
+    }
   };
 
   // Logout Google Account
@@ -100,14 +137,22 @@ export default function Landpage() {
     localStorage.removeItem('gestto_hub_google_user');
     setGoogleUser(null);
     setClinics([]);
+    setLoginPassword('');
+    setLoginError('');
   };
 
-  // Switch between allowed Google Accounts
+  // Switch between allowed Google Accounts with re-authentication required
   const handleSwitchAccount = () => {
     const currentIdx = ALLOWED_GOOGLE_ACCOUNTS.indexOf(googleUser || '');
     const nextIdx = (currentIdx + 1) % ALLOWED_GOOGLE_ACCOUNTS.length;
     const nextEmail = ALLOWED_GOOGLE_ACCOUNTS[nextIdx];
-    handleGoogleLogin(nextEmail);
+    
+    localStorage.removeItem('gestto_hub_google_user');
+    setGoogleUser(null);
+    setClinics([]);
+    setLoginEmail(nextEmail);
+    setLoginPassword('');
+    setLoginError('');
   };
 
   // Generate slug dynamically
@@ -304,23 +349,71 @@ export default function Landpage() {
               Este domínio hospeda o controle mestre da plataforma Gestto. O acesso é estritamente protegido por login institucional Google.
             </p>
 
-            <div className="border-t border-gray-100 pt-6 space-y-3 text-left">
-              <label className="block text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-2">Selecione uma conta Google Homologada:</label>
-              
-              {ALLOWED_GOOGLE_ACCOUNTS.map(email => (
-                <button
-                  key={email}
-                  onClick={() => handleGoogleLogin(email)}
-                  className="w-full bg-white border border-gray-200 hover:border-[#a38e74] hover:bg-[#fbf9f5] text-gray-700 font-bold px-4 py-3 rounded-xl transition-all shadow-xs flex items-center justify-between text-xs"
-                >
-                  <span className="flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-[#8c7457]" />
-                    {email}
-                  </span>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
-                </button>
-              ))}
-            </div>
+            <form onSubmit={handleHubLogin} className="border-t border-gray-100 pt-6 space-y-4 text-left">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Conta Administrativa Google</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ALLOWED_GOOGLE_ACCOUNTS.map(email => {
+                    const isSelected = loginEmail === email;
+                    return (
+                      <button
+                        key={email}
+                        type="button"
+                        onClick={() => setLoginEmail(email)}
+                        className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all truncate flex flex-col justify-center items-center gap-1 ${
+                          isSelected 
+                            ? 'bg-[#fbf9f5] border-[#c5b49f] text-[#5c4f3c] ring-2 ring-[#c5b49f]/10' 
+                            : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                        }`}
+                      >
+                        <UserCheck className={`w-3.5 h-3.5 ${isSelected ? 'text-[#8c7457]' : 'text-gray-400'}`} />
+                        <span className="truncate max-w-full">{email.split('@')[0]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-gray-400">E-mail Administrativo</label>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={e => setLoginEmail(e.target.value)}
+                  className="w-full text-xs px-4 py-3 bg-[#fbf9f6] border border-gray-200 rounded-xl outline-none focus:bg-white focus:border-[#c5b49f] font-semibold"
+                  placeholder="Selecione ou digite o e-mail..."
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Senha Mestre</label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  className="w-full text-xs px-4 py-3 bg-[#fbf9f6] border border-gray-200 rounded-xl outline-none focus:bg-white focus:border-[#c5b49f] font-semibold"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              {loginError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loggingIn}
+                className="w-full bg-[#8c7457] hover:bg-[#735e45] text-white font-bold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-[#8c7457]/10 disabled:opacity-50"
+              >
+                <span>{loggingIn ? 'Autenticando...' : 'Acessar Hub Central'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
 
             <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
               <Lock className="w-3.5 h-3.5" />

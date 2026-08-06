@@ -623,6 +623,27 @@ async function startServer() {
   // HUB CENTRAL (SUPER-ADMIN) ENDPOINTS
   // ==========================================
 
+  app.post("/api/hub/login", async (req, res) => {
+    const { email, password } = req.body;
+    const allowedEmails = ['devaro2026@gmail.com', 'financeiro@gestto.com'];
+    const correctPassword = process.env.HUB_PASSWORD || "gestto2026";
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    if (!allowedEmails.includes(cleanEmail)) {
+      return res.status(401).json({ error: "Este e-mail não possui acesso de administrador do HUB." });
+    }
+
+    if (password !== correctPassword) {
+      return res.status(401).json({ error: "Senha incorreta. Verifique suas credenciais mestre." });
+    }
+
+    res.json({ success: true, email: cleanEmail });
+  });
+
   // List all clinics in detail (Hub Dashboard)
   app.get("/api/hub/clinics", async (req, res) => {
     try {
