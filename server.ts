@@ -802,6 +802,54 @@ async function startServer() {
     }
   });
 
+  // Delete clinic and clean up internal tables to preserve database economy
+  app.delete("/api/hub/clinics/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+      const clinicRes = await rawDb.execute({
+        sql: "SELECT id, name, slug, db_url FROM clinics WHERE id = ?",
+        args: [id]
+      });
+
+      if (clinicRes.rows.length === 0) {
+        return res.status(404).json({ error: "Clínica não encontrada." });
+      }
+
+      const clinic = clinicRes.rows[0];
+      const slug = clinic.slug as string;
+      const isCustomDb = !!clinic.db_url;
+
+      if (slug === 'principal') {
+        return res.status(400).json({ error: "A clínica principal não pode ser excluída." });
+      }
+
+      // If internal database is used, drop its prefixed tables to keep database light and economical
+      if (!isCustomDb) {
+        for (const table of tablesToPrefix) {
+          try {
+            await rawDb.execute(`DROP TABLE IF EXISTS store_${slug}_${table}`);
+          } catch (dropErr) {
+            console.error(`Failed to drop table store_${slug}_${table} for deleted clinic ${slug}:`, dropErr);
+          }
+        }
+      }
+
+      // Delete from clinics master table
+      await rawDb.execute({
+        sql: "DELETE FROM clinics WHERE id = ?",
+        args: [id]
+      });
+
+      // Evict from client connections cache
+      storeDbClients.delete(slug);
+
+      res.json({ success: true, message: `Clínica "${clinic.name}" excluída com sucesso.` });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Send messages from Hub (Bulk or Single)
   app.post("/api/hub/messages", async (req, res) => {
     const { target, title, message, type } = req.body; // target: 'all' or specific slug

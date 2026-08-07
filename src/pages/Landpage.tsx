@@ -62,6 +62,7 @@ export default function Landpage() {
   const [editDueDate, setEditDueDate] = useState('');
   const [editIsBlocked, setEditIsBlocked] = useState(false);
   const [editSuccess, setEditSuccess] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   // Message Sending State
   const [msgTarget, setMsgTarget] = useState<'all' | string>('all');
@@ -222,6 +223,7 @@ export default function Landpage() {
     setEditDueDate(clinic.billing_due_date || '');
     setEditIsBlocked(clinic.is_blocked === 1);
     setEditSuccess(false);
+    setConfirmDeleteId(null);
   };
 
   // Handle edit submission
@@ -251,6 +253,29 @@ export default function Landpage() {
         }, 1500);
       } else {
         alert("Erro ao salvar alterações da clínica.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao conectar com o servidor.");
+    }
+  };
+
+  // Handle deleting a clinic from the network
+  const handleDeleteClinic = async (id: number) => {
+    try {
+      const res = await fetch(`/api/hub/clinics/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEditSuccess(true);
+        setTimeout(() => {
+          setEditingClinicId(null);
+          setConfirmDeleteId(null);
+          fetchClinics();
+        }, 1500);
+      } else {
+        alert(data.error || "Erro ao excluir clínica.");
       }
     } catch (err) {
       console.error(err);
@@ -569,6 +594,28 @@ export default function Landpage() {
                         </div>
 
                         <div className="flex items-center space-x-2 shrink-0">
+                          {clinic.slug !== 'principal' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirmDeleteId === clinic.id) {
+                                  handleDeleteClinic(clinic.id);
+                                  setConfirmDeleteId(null);
+                                } else {
+                                  setConfirmDeleteId(clinic.id);
+                                }
+                              }}
+                              className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 border ${
+                                confirmDeleteId === clinic.id
+                                  ? 'bg-red-600 border-red-600 text-white animate-pulse shadow-sm shadow-red-600/20'
+                                  : 'bg-red-50/50 hover:bg-red-50 text-red-600 border-red-100 hover:border-red-200'
+                              }`}
+                              title="Excluir esta clínica permanentemente"
+                            >
+                              <Trash className="w-3.5 h-3.5" />
+                              <span>{confirmDeleteId === clinic.id ? 'Confirmar?' : 'Excluir'}</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => handleStartEdit(clinic)}
                             className="text-xs bg-[#fbf9f6] hover:bg-[#f3eee5] border border-gray-200 hover:border-[#ebdcd0] text-[#5c4f3c] font-bold px-3 py-1.5 rounded-xl transition-all"
@@ -945,12 +992,36 @@ export default function Landpage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full bg-[#a38e74] hover:bg-[#8f7b62] text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center space-x-2 text-xs uppercase tracking-wider mt-4"
-              >
-                <span>Salvar Configurações da Loja</span>
-              </button>
+              {/* Modal action buttons */}
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                {editingClinicId && clinics.find(c => c.id === editingClinicId)?.slug !== 'principal' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirmDeleteId === editingClinicId) {
+                        handleDeleteClinic(editingClinicId);
+                      } else {
+                        setConfirmDeleteId(editingClinicId);
+                      }
+                    }}
+                    className={`col-span-1 font-bold py-3 rounded-xl transition-all flex items-center justify-center space-x-1 text-xs uppercase tracking-wider border ${
+                      confirmDeleteId === editingClinicId
+                        ? 'bg-red-600 border-red-600 text-white animate-pulse shadow-sm shadow-red-600/20'
+                        : 'bg-red-50 hover:bg-red-100 text-red-600 border-red-100 hover:border-red-200'
+                    }`}
+                  >
+                    <Trash className="w-4 h-4" />
+                    <span>{confirmDeleteId === editingClinicId ? 'Confirmar?' : 'Excluir'}</span>
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  className={`${editingClinicId && clinics.find(c => c.id === editingClinicId)?.slug === 'principal' ? 'col-span-3' : 'col-span-2'} bg-[#a38e74] hover:bg-[#8f7b62] text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center space-x-2 text-xs uppercase tracking-wider`}
+                >
+                  <span>Salvar Configurações</span>
+                </button>
+              </div>
             </form>
           </div>
         </div>
