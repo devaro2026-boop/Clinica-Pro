@@ -729,17 +729,25 @@ async function startServer() {
     if (correctPassword.startsWith("'") && correctPassword.endsWith("'")) {
       correctPassword = correctPassword.slice(1, -1);
     }
+    correctPassword = correctPassword.trim();
 
     if (!email || !password) {
       return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+
     if (!allowedEmails.includes(cleanEmail)) {
       return res.status(401).json({ error: "Este e-mail não possui acesso de administrador do HUB." });
     }
 
-    if (password !== correctPassword) {
+    if (cleanPassword !== correctPassword) {
+      console.warn(`[Admin Login Fail] E-mail: ${cleanEmail}`);
+      console.warn(`[Admin Login Fail] Entered len: ${cleanPassword.length}, Expected len: ${correctPassword.length}`);
+      if (correctPassword.length > 0) {
+        console.warn(`[Admin Login Fail] Password hint: First 2 chars: "${correctPassword.substring(0, 2)}", Last 2 chars: "${correctPassword.substring(correctPassword.length - 2)}"`);
+      }
       return res.status(401).json({ error: "Senha incorreta. Verifique suas credenciais mestre." });
     }
 
