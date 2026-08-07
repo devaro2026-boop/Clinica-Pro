@@ -56,10 +56,15 @@ export default function Financial() {
         fetch('/api/wallets'),
         fetch('/api/credit-cards')
       ]);
-      setRecords(await fRes.json());
-      setPatients(await pRes.json());
-      setWallets(await wRes.json());
-      setCreditCards(await cRes.json());
+      const fData = await fRes.json();
+      const pData = await pRes.json();
+      const wData = await wRes.json();
+      const cData = await cRes.json();
+
+      setRecords(Array.isArray(fData) ? fData : []);
+      setPatients(Array.isArray(pData) ? pData : []);
+      setWallets(Array.isArray(wData) ? wData : []);
+      setCreditCards(Array.isArray(cData) ? cData : []);
     } catch (e) { 
       console.error("Error loading financial data:", e); 
     }

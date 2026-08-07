@@ -14,7 +14,7 @@ const storeStorage = new AsyncLocalStorage<{ slug: string }>();
 const tablesToPrefix = [
   'patients', 'appointments', 'financial', 'packages', 'catalog_items', 
   'budgets', 'budget_items', 'anamnesis', 'photos', 'consent_forms', 
-  'settings', 'client_notifications', 'hub_messages'
+  'settings', 'client_notifications', 'hub_messages', 'wallets', 'credit_cards'
 ];
 
 // Initialize DB Client (Internal Raw Connection)

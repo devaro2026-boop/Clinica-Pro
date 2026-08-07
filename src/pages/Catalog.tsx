@@ -23,7 +23,7 @@ export default function Catalog() {
   const fetchItems = async () => {
     const res = await fetch('/api/catalog');
     const data = await res.json();
-    setItems(data);
+    setItems(Array.isArray(data) ? data : []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
