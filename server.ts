@@ -214,6 +214,97 @@ async function createStoreTables(slug: string, targetDb: any = rawDb) {
     );
   `);
 
+  // Dynamically add new fields to financial table for advanced forms
+  const financialFields = [
+    { name: 'category', type: 'TEXT' },
+    { name: 'cost_center', type: 'TEXT' },
+    { name: 'responsible', type: 'TEXT' },
+    { name: 'apportionment', type: 'TEXT' },
+    { name: 'installments', type: 'TEXT' },
+    { name: 'account_card', type: 'TEXT' },
+    { name: 'due_date', type: 'TEXT' },
+    { name: 'competency_date', type: 'TEXT' }
+  ];
+
+  for (const field of financialFields) {
+    try {
+      await targetDb.execute(`ALTER TABLE ${prefix}financial ADD COLUMN ${field.name} ${field.type}`);
+    } catch (e) {
+      // Column might already exist, which is fine
+    }
+  }
+
+  // Create Wallets table (Contas e carteiras)
+  await targetDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}wallets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'conta corrente', 'outros', 'poupança'
+        balance REAL DEFAULT 0,
+        bank_name TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Create Credit Cards table
+  await targetDb.execute(`
+    CREATE TABLE IF NOT EXISTS ${prefix}credit_cards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        invoice_amount REAL DEFAULT 0,
+        available_limit REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Seed default wallets if empty
+  try {
+    const checkWallets = await targetDb.execute(`SELECT COUNT(*) as count FROM ${prefix}wallets`);
+    if ((checkWallets.rows[0]?.count as number) === 0) {
+      const defaultWallets = [
+        { name: 'PAGCORP', type: 'outros', balance: 1543.20 },
+        { name: 'A RECEBER', type: 'outros', balance: 0 },
+        { name: 'A RECEBER SOL AGORA', type: 'outros', balance: 0 },
+        { name: 'Banco do Brasil - Entradas do mês', type: 'conta corrente', balance: 12450.00 },
+        { name: 'Banco do Nordeste', type: 'conta corrente', balance: 3200.50 },
+        { name: 'Bradesco - Despesas Fixas', type: 'conta corrente', balance: -450.00 },
+        { name: 'BTG - Intersolis LTDA', type: 'conta corrente', balance: 45000.00 },
+        { name: 'BTG Pactual - Intermobility', type: 'conta corrente', balance: 15200.10 },
+        { name: 'C6 Bank (INTERMOBILITY)', type: 'conta corrente', balance: 8900.00 },
+        { name: 'Conta Administrativa', type: 'conta corrente', balance: 1250.00 },
+        { name: 'Conta Comercial - Matriz', type: 'outros', balance: 5400.00 },
+        { name: 'Conta Inicial', type: 'outros', balance: 0 }
+      ];
+      for (const w of defaultWallets) {
+        await targetDb.execute({
+          sql: `INSERT INTO ${prefix}wallets (name, type, balance, bank_name) VALUES (?, ?, ?, ?)`,
+          args: [w.name, w.type, w.balance, w.name.split(' - ')[0]]
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error seeding default wallets:", err);
+  }
+
+  // Seed default credit cards if empty
+  try {
+    const checkCards = await targetDb.execute(`SELECT COUNT(*) as count FROM ${prefix}credit_cards`);
+    if ((checkCards.rows[0]?.count as number) === 0) {
+      const defaultCards = [
+        { name: 'CARTÃO ITAU BUSINESS', invoice_amount: 8180.06, available_limit: -9278.41 },
+        { name: 'CARTÃO SANTANDER', invoice_amount: 0.00, available_limit: 22800.00 }
+      ];
+      for (const c of defaultCards) {
+        await targetDb.execute({
+          sql: `INSERT INTO ${prefix}credit_cards (name, invoice_amount, available_limit) VALUES (?, ?, ?)`,
+          args: [c.name, c.invoice_amount, c.available_limit]
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error seeding default credit cards:", err);
+  }
+
   await targetDb.execute(`
     CREATE TABLE IF NOT EXISTS ${prefix}packages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1104,7 +1195,7 @@ async function startServer() {
   // Financial
   app.get("/api/financial", async (req, res) => {
     try {
-      const result = await db.execute("SELECT f.*, p.name as patient_name FROM financial f LEFT JOIN patients p ON f.patient_id = p.id ORDER BY date DESC LIMIT 10");
+      const result = await db.execute("SELECT f.*, p.name as patient_name FROM financial f LEFT JOIN patients p ON f.patient_id = p.id ORDER BY date DESC LIMIT 500");
       res.json(result.rows);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -1112,7 +1203,7 @@ async function startServer() {
   app.get("/api/patients/:id/financial", async (req, res) => {
     try {
       const result = await db.execute({
-        sql: "SELECT * FROM financial WHERE patient_id = ? ORDER BY date DESC LIMIT 10",
+        sql: "SELECT * FROM financial WHERE patient_id = ? ORDER BY date DESC LIMIT 500",
         args: [req.params.id]
       });
       res.json(result.rows);
@@ -1120,12 +1211,48 @@ async function startServer() {
   });
 
   app.post("/api/financial", async (req, res) => {
-    const { clinic_id, patient_id, description, amount, type, payment_method, status, date, items } = req.body;
+    const { 
+      clinic_id, patient_id, description, amount, type, payment_method, status, date, items,
+      category, cost_center, responsible, apportionment, installments, account_card, due_date, competency_date
+    } = req.body;
     try {
       const result = await db.execute({
-        sql: "INSERT INTO financial (clinic_id, patient_id, description, amount, type, payment_method, status, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        args: [clinic_id || 1, patient_id, description, amount, type, payment_method, status, date]
+        sql: `INSERT INTO financial (
+                clinic_id, patient_id, description, amount, type, payment_method, status, date,
+                category, cost_center, responsible, apportionment, installments, account_card, due_date, competency_date
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          clinic_id || 1, 
+          patient_id || null, 
+          description, 
+          amount, 
+          type, 
+          payment_method, 
+          status, 
+          date,
+          category || 'Outros',
+          cost_center || 'Geral',
+          responsible || 'MIRIA ROCHELLE APRIGIO DOS SANTOS',
+          apportionment ? JSON.stringify(apportionment) : null,
+          installments || 'À vista',
+          account_card || '',
+          due_date || date,
+          competency_date || date
+        ]
       });
+
+      // Update associated wallet balance if status is 'paid'
+      if (status === 'paid' && account_card) {
+        try {
+          const adj = type === 'income' ? amount : -amount;
+          await db.execute({
+            sql: "UPDATE wallets SET balance = balance + ? WHERE name = ? OR bank_name = ?",
+            args: [adj, account_card, account_card]
+          });
+        } catch (walletErr) {
+          console.error("Failed to auto-update wallet balance:", walletErr);
+        }
+      }
 
       // Automatically deduct product stock if items are sent
       if (items && Array.isArray(items)) {
@@ -1144,18 +1271,94 @@ async function startServer() {
   });
 
   app.put("/api/financial/:id", async (req, res) => {
-    const { description, amount, type, payment_method, status, date } = req.body;
+    const { 
+      description, amount, type, payment_method, status, date,
+      category, cost_center, responsible, apportionment, installments, account_card, due_date, competency_date
+    } = req.body;
     try {
+      // Find old transaction to adjust wallet balances if status or amount changed
+      let oldRecord: any = null;
+      try {
+        const oldResult = await db.execute({
+          sql: "SELECT * FROM financial WHERE id = ?",
+          args: [req.params.id]
+        });
+        if (oldResult.rows.length > 0) {
+          oldRecord = oldResult.rows[0];
+        }
+      } catch (err) {
+        console.error("Error fetching old record for update reconciliation:", err);
+      }
+
       await db.execute({
-        sql: "UPDATE financial SET description = ?, amount = ?, type = ?, payment_method = ?, status = ?, date = ? WHERE id = ?",
-        args: [description, amount, type, payment_method, status, date, req.params.id]
+        sql: `UPDATE financial SET 
+                description = ?, amount = ?, type = ?, payment_method = ?, status = ?, date = ?,
+                category = ?, cost_center = ?, responsible = ?, apportionment = ?, installments = ?, account_card = ?, due_date = ?, competency_date = ?
+              WHERE id = ?`,
+        args: [
+          description, amount, type, payment_method, status, date,
+          category || 'Outros',
+          cost_center || 'Geral',
+          responsible || 'MIRIA ROCHELLE APRIGIO DOS SANTOS',
+          apportionment ? JSON.stringify(apportionment) : null,
+          installments || 'À vista',
+          account_card || '',
+          due_date || date,
+          competency_date || date,
+          req.params.id
+        ]
       });
+
+      // Reconcile Wallet balance changes dynamically
+      if (oldRecord) {
+        try {
+          // Revert old transaction effect
+          if (oldRecord.status === 'paid' && oldRecord.account_card) {
+            const oldAdj = oldRecord.type === 'income' ? -oldRecord.amount : oldRecord.amount;
+            await db.execute({
+              sql: "UPDATE wallets SET balance = balance + ? WHERE name = ?",
+              args: [oldAdj, oldRecord.account_card]
+            });
+          }
+          // Apply new transaction effect
+          if (status === 'paid' && account_card) {
+            const newAdj = type === 'income' ? amount : -amount;
+            await db.execute({
+              sql: "UPDATE wallets SET balance = balance + ? WHERE name = ?",
+              args: [newAdj, account_card]
+            });
+          }
+        } catch (reconcileErr) {
+          console.error("Error adjusting wallet balances on financial update:", reconcileErr);
+        }
+      }
+
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   app.delete("/api/financial/:id", async (req, res) => {
     try {
+      // Revert wallet balance if we are deleting a paid transaction
+      try {
+        const oldResult = await db.execute({
+          sql: "SELECT * FROM financial WHERE id = ?",
+          args: [req.params.id]
+        });
+        if (oldResult.rows.length > 0) {
+          const oldRecord = oldResult.rows[0];
+          if (oldRecord.status === 'paid' && oldRecord.account_card) {
+            const oldAdj = oldRecord.type === 'income' ? -oldRecord.amount : oldRecord.amount;
+            await db.execute({
+              sql: "UPDATE wallets SET balance = balance + ? WHERE name = ?",
+              args: [oldAdj, oldRecord.account_card]
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error adjusting wallet balance on delete:", err);
+      }
+
       await db.execute({
         sql: "DELETE FROM financial WHERE id = ?",
         args: [req.params.id]
@@ -1165,11 +1368,132 @@ async function startServer() {
   });
   
   app.put("/api/financial/:id/status", async (req, res) => {
-    const { status, payment_method } = req.body;
+    const { status, payment_method, account_card } = req.body;
+    try {
+      let oldRecord: any = null;
+      try {
+        const oldResult = await db.execute({
+          sql: "SELECT * FROM financial WHERE id = ?",
+          args: [req.params.id]
+        });
+        if (oldResult.rows.length > 0) {
+          oldRecord = oldResult.rows[0];
+        }
+      } catch (err) {}
+
+      await db.execute({
+        sql: "UPDATE financial SET status = ?, payment_method = ?, account_card = COALESCE(?, account_card) WHERE id = ?",
+        args: [status, payment_method, account_card || null, req.params.id]
+      });
+
+      // Update wallet if status updated to paid
+      if (oldRecord) {
+        const activeCard = account_card || oldRecord.account_card;
+        if (oldRecord.status !== 'paid' && status === 'paid' && activeCard) {
+          const adj = oldRecord.type === 'income' ? oldRecord.amount : -oldRecord.amount;
+          await db.execute({
+            sql: "UPDATE wallets SET balance = balance + ? WHERE name = ?",
+            args: [adj, activeCard]
+          });
+        } else if (oldRecord.status === 'paid' && status !== 'paid' && activeCard) {
+          // Changed back to pending
+          const adj = oldRecord.type === 'income' ? -oldRecord.amount : oldRecord.amount;
+          await db.execute({
+            sql: "UPDATE wallets SET balance = balance + ? WHERE name = ?",
+            args: [adj, activeCard]
+          });
+        }
+      }
+
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Wallets (Contas e Carteiras) Endpoints
+  app.get("/api/wallets", async (req, res) => {
+    try {
+      const result = await db.execute("SELECT * FROM wallets ORDER BY name ASC");
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/wallets", async (req, res) => {
+    const { name, type, balance, bank_name } = req.body;
+    try {
+      const result = await db.execute({
+        sql: "INSERT INTO wallets (name, type, balance, bank_name) VALUES (?, ?, ?, ?)",
+        args: [name, type, balance || 0, bank_name || name]
+      });
+      res.json({ id: Number(result.lastInsertRowid), name, type, balance: balance || 0 });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/wallets/:id", async (req, res) => {
+    const { name, type, balance, bank_name } = req.body;
     try {
       await db.execute({
-        sql: "UPDATE financial SET status = ?, payment_method = ? WHERE id = ?",
-        args: [status, payment_method, req.params.id]
+        sql: "UPDATE wallets SET name = ?, type = ?, balance = ?, bank_name = ? WHERE id = ?",
+        args: [name, type, balance, bank_name, req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/wallets/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM wallets WHERE id = ?",
+        args: [req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Simulation: Reconcile Account (Conciliar)
+  app.post("/api/wallets/reconcile", async (req, res) => {
+    const { walletId, transactions } = req.body;
+    try {
+      // In a real flow this matches bank statement transactions with our system records
+      // We'll simulate this beautifully on the client, and we can save notes or statuses.
+      res.json({ success: true, reconciledCount: transactions?.length || 0 });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Credit Cards Endpoints
+  app.get("/api/credit-cards", async (req, res) => {
+    try {
+      const result = await db.execute("SELECT * FROM credit_cards ORDER BY name ASC");
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/credit-cards", async (req, res) => {
+    const { name, invoice_amount, available_limit } = req.body;
+    try {
+      const result = await db.execute({
+        sql: "INSERT INTO credit_cards (name, invoice_amount, available_limit) VALUES (?, ?, ?)",
+        args: [name, invoice_amount || 0, available_limit || 0]
+      });
+      res.json({ id: Number(result.lastInsertRowid), name, invoice_amount, available_limit });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/credit-cards/:id", async (req, res) => {
+    const { name, invoice_amount, available_limit } = req.body;
+    try {
+      await db.execute({
+        sql: "UPDATE credit_cards SET name = ?, invoice_amount = ?, available_limit = ? WHERE id = ?",
+        args: [name, invoice_amount, available_limit, req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/credit-cards/:id", async (req, res) => {
+    try {
+      await db.execute({
+        sql: "DELETE FROM credit_cards WHERE id = ?",
+        args: [req.params.id]
       });
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }

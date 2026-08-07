@@ -55,7 +55,7 @@ export interface ConsentForm {
 export interface FinancialRecord {
   id: number;
   clinic_id: number;
-  patient_id: number;
+  patient_id: number | null;
   patient_name?: string;
   description: string;
   amount: number;
@@ -64,6 +64,33 @@ export interface FinancialRecord {
   status: 'paid' | 'pending';
   date: string;
   created_at: string;
+  
+  // Advanced fields
+  category?: string;
+  cost_center?: string;
+  responsible?: string;
+  apportionment?: string; // JSON array of cost centers/portions
+  installments?: string;
+  account_card?: string;
+  due_date?: string;
+  competency_date?: string;
+}
+
+export interface Wallet {
+  id: number;
+  name: string;
+  type: string;
+  balance: number;
+  bank_name?: string;
+  created_at?: string;
+}
+
+export interface CreditCard {
+  id: number;
+  name: string;
+  invoice_amount: number;
+  available_limit: number;
+  created_at?: string;
 }
 
 export interface Package {
