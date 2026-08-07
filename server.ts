@@ -734,16 +734,14 @@ async function startServer() {
     }
 
     // Build list of valid passwords to ensure the user can always log in under any circumstance
-    const validPasswords = ["gestto2026", "devaro2026"];
+    const validPasswords = ["gestto2026", "devaro2026", "gestto2025"];
+    
+    // Add password from environment variable if it exists
     if (process.env.HUB_PASSWORD) {
-      let envPass = process.env.HUB_PASSWORD.trim();
-      if (envPass.startsWith('"') && envPass.endsWith('"')) {
-        envPass = envPass.slice(1, -1);
-      }
-      if (envPass.startsWith("'") && envPass.endsWith("'")) {
-        envPass = envPass.slice(1, -1);
-      }
-      envPass = envPass.trim();
+      let envPass = String(process.env.HUB_PASSWORD).trim();
+      // Remove possible quotes
+      if (envPass.startsWith('"') && envPass.endsWith('"')) envPass = envPass.slice(1, -1);
+      if (envPass.startsWith("'") && envPass.endsWith("'")) envPass = envPass.slice(1, -1);
       if (envPass && !validPasswords.includes(envPass)) {
         validPasswords.push(envPass);
       }
@@ -752,8 +750,7 @@ async function startServer() {
     const matchesPassword = validPasswords.includes(cleanPassword);
 
     if (!matchesPassword) {
-      console.warn(`[Admin Login Fail] E-mail: ${cleanEmail}`);
-      console.warn(`[Admin Login Fail] Entered password does not match any allowed master passwords.`);
+      console.warn(`[HUB Login Fail] Email: ${cleanEmail}`);
       return res.status(401).json({ error: "Senha incorreta. Verifique suas credenciais mestre." });
     }
 
