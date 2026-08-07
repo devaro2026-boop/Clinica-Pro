@@ -6,6 +6,10 @@ import multer from "multer";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { AsyncLocalStorage } from "async_hooks";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
 
 // Context storage for active store slug
 const storeStorage = new AsyncLocalStorage<{ slug: string }>();
@@ -717,7 +721,14 @@ async function startServer() {
   app.post("/api/hub/login", async (req, res) => {
     const { email, password } = req.body;
     const allowedEmails = ['devaro2026@gmail.com', 'financeiro@gestto.com'];
-    const correctPassword = process.env.HUB_PASSWORD || "gestto2026";
+    
+    let correctPassword = (process.env.HUB_PASSWORD || "gestto2026").trim();
+    if (correctPassword.startsWith('"') && correctPassword.endsWith('"')) {
+      correctPassword = correctPassword.slice(1, -1);
+    }
+    if (correctPassword.startsWith("'") && correctPassword.endsWith("'")) {
+      correctPassword = correctPassword.slice(1, -1);
+    }
 
     if (!email || !password) {
       return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
