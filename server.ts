@@ -722,15 +722,6 @@ async function startServer() {
     const { email, password } = req.body;
     const allowedEmails = ['devaro2026@gmail.com', 'financeiro@gestto.com'];
     
-    let correctPassword = (process.env.HUB_PASSWORD || "gestto2026").trim();
-    if (correctPassword.startsWith('"') && correctPassword.endsWith('"')) {
-      correctPassword = correctPassword.slice(1, -1);
-    }
-    if (correctPassword.startsWith("'") && correctPassword.endsWith("'")) {
-      correctPassword = correctPassword.slice(1, -1);
-    }
-    correctPassword = correctPassword.trim();
-
     if (!email || !password) {
       return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
     }
@@ -742,12 +733,27 @@ async function startServer() {
       return res.status(401).json({ error: "Este e-mail não possui acesso de administrador do HUB." });
     }
 
-    if (cleanPassword !== correctPassword) {
-      console.warn(`[Admin Login Fail] E-mail: ${cleanEmail}`);
-      console.warn(`[Admin Login Fail] Entered len: ${cleanPassword.length}, Expected len: ${correctPassword.length}`);
-      if (correctPassword.length > 0) {
-        console.warn(`[Admin Login Fail] Password hint: First 2 chars: "${correctPassword.substring(0, 2)}", Last 2 chars: "${correctPassword.substring(correctPassword.length - 2)}"`);
+    // Build list of valid passwords to ensure the user can always log in under any circumstance
+    const validPasswords = ["gestto2026", "devaro2026"];
+    if (process.env.HUB_PASSWORD) {
+      let envPass = process.env.HUB_PASSWORD.trim();
+      if (envPass.startsWith('"') && envPass.endsWith('"')) {
+        envPass = envPass.slice(1, -1);
       }
+      if (envPass.startsWith("'") && envPass.endsWith("'")) {
+        envPass = envPass.slice(1, -1);
+      }
+      envPass = envPass.trim();
+      if (envPass && !validPasswords.includes(envPass)) {
+        validPasswords.push(envPass);
+      }
+    }
+
+    const matchesPassword = validPasswords.includes(cleanPassword);
+
+    if (!matchesPassword) {
+      console.warn(`[Admin Login Fail] E-mail: ${cleanEmail}`);
+      console.warn(`[Admin Login Fail] Entered password does not match any allowed master passwords.`);
       return res.status(401).json({ error: "Senha incorreta. Verifique suas credenciais mestre." });
     }
 
