@@ -3,7 +3,7 @@ import {
   Sparkles, ArrowRight, Shield, Globe, ExternalLink, Mail, Lock, 
   Building, Layers, Database, Key, Send, Search, RefreshCw, 
   AlertTriangle, CheckCircle2, DollarSign, Users, Trash, ShieldAlert,
-  UserCheck
+  UserCheck, QrCode, Printer, Download, Copy, Check
 } from 'lucide-react';
 
 interface Clinic {
@@ -64,6 +64,10 @@ export default function Landpage() {
   const [editSuccess, setEditSuccess] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
+  // QR Code States
+  const [activeQrClinic, setActiveQrClinic] = useState<Clinic | null>(null);
+  const [copied, setCopied] = useState(false);
+
   // Message Sending State
   const [msgTarget, setMsgTarget] = useState<'all' | string>('all');
   const [msgTitle, setMsgTitle] = useState('');
@@ -72,6 +76,136 @@ export default function Landpage() {
   const [msgSuccess, setMsgSuccess] = useState(false);
   const [msgError, setMsgError] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
+
+  // QR Code Utility Handlers
+  const handleCopyPortalLink = (slug: string) => {
+    const url = `${window.location.origin}/loja/${slug}/portal`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadClinicQR = async (slug: string) => {
+    const url = `${window.location.origin}/loja/${slug}/portal`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `qrcode-${slug}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(qrUrl, '_blank');
+    }
+  };
+
+  const handlePrintClinicQR = (name: string, slug: string) => {
+    const url = `${window.location.origin}/loja/${slug}/portal`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Imprimir QR Code - ${name}</title>
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+                color: #171717;
+                background-color: #ffffff;
+                text-align: center;
+              }
+              .container {
+                max-width: 450px;
+                border: 3px solid #e5e5e5;
+                padding: 40px;
+                border-radius: 24px;
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+              }
+              .logo {
+                font-size: 28px;
+                font-weight: 800;
+                color: #8c7355;
+                margin-bottom: 5px;
+                letter-spacing: -0.025em;
+              }
+              .subtitle {
+                font-size: 14px;
+                color: #6b7280;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                margin-bottom: 30px;
+              }
+              .qr-box {
+                background: #f9f9f9;
+                padding: 24px;
+                border-radius: 16px;
+                margin-bottom: 30px;
+                display: inline-block;
+              }
+              .qr-image {
+                width: 250px;
+                height: 250px;
+                display: block;
+              }
+              .instruction {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 10px;
+                color: #111827;
+              }
+              .url {
+                font-size: 13px;
+                color: #4b5563;
+                background: #f3f4f6;
+                padding: 8px 16px;
+                border-radius: 9999px;
+                font-weight: 500;
+                display: inline-block;
+              }
+              @media print {
+                body { min-height: auto; }
+                .container { border: none; box-shadow: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="logo">${name}</div>
+              <div class="subtitle">Portal de Clientes</div>
+              <div class="qr-box">
+                <img class="qr-image" src="${qrUrl}" alt="QR Code" />
+              </div>
+              <div class="instruction">Escaneie para agendar seu horário online</div>
+              <div class="url">ou acesse: ${url}</div>
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
 
   // Load clinics list on mount/auth change
   const fetchClinics = () => {
@@ -645,7 +779,7 @@ export default function Landpage() {
                       </div>
 
                       {/* Direct administrative access links */}
-                      <div className="flex items-center space-x-3 text-xs font-bold pt-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold pt-1">
                         <a 
                           href={`/loja/${clinic.slug}/dashboard`}
                           className="text-[#8c7457] hover:text-[#715c44] flex items-center gap-1"
@@ -661,6 +795,15 @@ export default function Landpage() {
                         >
                           Portal Agendamentos <ExternalLink className="w-3.5 h-3.5" />
                         </a>
+                        <span className="text-gray-200">|</span>
+                        <button 
+                          type="button"
+                          onClick={() => setActiveQrClinic(clinic)}
+                          className="text-amber-700 hover:text-amber-900 flex items-center gap-1 font-bold"
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                          <span>QR Code Portal</span>
+                        </button>
                       </div>
                     </div>
                   );
@@ -1023,6 +1166,79 @@ export default function Landpage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic QR Code Modal for Hub Admin */}
+      {activeQrClinic && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-gray-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl relative animate-scale-up text-left">
+            <div className="bg-[#a38e74] text-white p-6 relative">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <QrCode className="w-5 h-5" />
+                <span>QR Code do Portal de Clientes</span>
+              </h3>
+              <p className="text-xs opacity-95 mt-1 font-semibold">Divulgue o link e QR Code para a clínica {activeQrClinic.name}</p>
+              <button 
+                onClick={() => {
+                  setActiveQrClinic(null);
+                  setCopied(false);
+                }}
+                className="absolute top-6 right-6 text-white hover:text-gray-100 font-bold text-sm focus:outline-none bg-black/10 hover:bg-black/20 w-8 h-8 rounded-full flex items-center justify-center transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 text-center">
+              <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 inline-block mx-auto">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/loja/${activeQrClinic.slug}/portal`)}`} 
+                  alt="QR Code" 
+                  className="w-48 h-48 object-contain rounded-lg shadow-xs mx-auto bg-white p-2"
+                  referrerPolicy="no-referrer"
+                />
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-3">Portal de Clientes: {activeQrClinic.slug}</p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-center justify-between gap-3 text-xs text-left">
+                <span className="truncate text-gray-600 font-semibold select-all">
+                  {`${window.location.origin}/loja/${activeQrClinic.slug}/portal`}
+                </span>
+                <button
+                  onClick={() => handleCopyPortalLink(activeQrClinic.slug)}
+                  className={`shrink-0 flex items-center space-x-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                    copied 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-white text-gray-800 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copied ? 'Copiado!' : 'Copiar'}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadClinicQR(activeQrClinic.slug)}
+                  className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold py-3 rounded-xl transition-all shadow-xs flex items-center justify-center space-x-2 text-xs uppercase tracking-wider"
+                >
+                  <Download className="w-4 h-4 text-gray-500" />
+                  <span>Baixar QR</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePrintClinicQR(activeQrClinic.name, activeQrClinic.slug)}
+                  className="w-full bg-[#a38e74] hover:bg-[#8f7b62] text-white font-bold py-3 rounded-xl transition-all shadow-xs flex items-center justify-center space-x-2 text-xs uppercase tracking-wider"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

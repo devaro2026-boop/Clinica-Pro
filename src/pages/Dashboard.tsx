@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Appointment } from '../types';
 import { format, parseISO } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, User, Phone, CheckCircle, XCircle, Settings, Save, Check, Trash2, History } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Phone, CheckCircle, XCircle, Settings, Save, Check, Trash2, History, Copy, Download, Printer, ExternalLink, Globe, QrCode } from 'lucide-react';
 import NotificationBell from '../components/NotificationBell';
+import { getActiveStoreSlug } from '../utils/multiStore';
 
 export default function Dashboard() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -27,6 +28,138 @@ export default function Dashboard() {
   const [cleanupSaveSuccess, setCleanupSaveSuccess] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [manualCleanupSuccess, setManualCleanupSuccess] = useState(false);
+
+  // QR Code & Customer Portal states
+  const activeSlug = getActiveStoreSlug();
+  const portalUrl = `${window.location.origin}/loja/${activeSlug}/portal`;
+  const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(portalUrl)}`;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(portalUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadQR = async () => {
+    try {
+      const response = await fetch(qrCodeImageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `qrcode-portal-${activeSlug}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading QR Code", err);
+      // Fallback in case of CORS or fetch blocker
+      window.open(qrCodeImageUrl, '_blank');
+    }
+  };
+
+  const handlePrintQR = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Imprimir QR Code - Portal de Clientes</title>
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+                color: #171717;
+                background-color: #ffffff;
+                text-align: center;
+              }
+              .container {
+                max-width: 450px;
+                border: 3px solid #e5e5e5;
+                padding: 40px;
+                border-radius: 24px;
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+              }
+              .logo {
+                font-size: 28px;
+                font-weight: 800;
+                color: #8c7355;
+                margin-bottom: 5px;
+                letter-spacing: -0.025em;
+              }
+              .subtitle {
+                font-size: 14px;
+                color: #6b7280;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                margin-bottom: 30px;
+              }
+              .qr-box {
+                background: #f9f9f9;
+                padding: 24px;
+                border-radius: 16px;
+                margin-bottom: 30px;
+                display: inline-block;
+              }
+              .qr-image {
+                width: 250px;
+                height: 250px;
+                display: block;
+              }
+              .instruction {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 10px;
+                color: #111827;
+              }
+              .url {
+                font-size: 13px;
+                color: #4b5563;
+                background: #f3f4f6;
+                padding: 8px 16px;
+                border-radius: 9999px;
+                font-weight: 500;
+                display: inline-block;
+              }
+              @media print {
+                body { min-height: auto; }
+                .container { border: none; box-shadow: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="logo">${storeName}</div>
+              <div class="subtitle">Portal de Clientes</div>
+              <div class="qr-box">
+                <img class="qr-image" src="${qrCodeImageUrl}" alt="QR Code" />
+              </div>
+              <div class="instruction">Escaneie para agendar seu horário online</div>
+              <div class="url">ou acesse: ${portalUrl}</div>
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
   
   const fetchAppointments = async () => {
     try {
@@ -282,6 +415,89 @@ export default function Dashboard() {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Portal de Clientes & QR Code de Divulgação */}
+      <div id="qrcode-sharing-card" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row items-center gap-8">
+        <div className="shrink-0 bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
+          <img 
+            src={qrCodeImageUrl} 
+            alt="Portal de Clientes QR Code" 
+            className="w-48 h-48 md:w-56 md:h-56 object-contain rounded-lg shadow-xs"
+            referrerPolicy="no-referrer"
+          />
+          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-3">Escaneie para testar</span>
+        </div>
+
+        <div className="flex-1 space-y-4 text-center md:text-left w-full">
+          <div className="space-y-1.5">
+            <span className="bg-amber-50 text-amber-800 text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full inline-block">
+              Divulgação e Atendimento
+            </span>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center justify-center md:justify-start gap-2">
+              <QrCode className="w-5 h-5 text-[#a38e74]" />
+              <span>QR Code & Portal de Clientes</span>
+            </h3>
+            <p className="text-sm text-gray-500 leading-relaxed font-medium">
+              Cada loja possui seu portal exclusivo. Divulgue este QR Code no balcão de atendimento, no WhatsApp ou no Instagram para que seus clientes façam agendamentos online e acompanhem o histórico.
+            </p>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center space-x-2 text-gray-600 font-semibold truncate">
+              <Globe className="w-4 h-4 text-gray-400 shrink-0" />
+              <span className="truncate select-all">{portalUrl}</span>
+            </div>
+            <button
+              onClick={handleCopyLink}
+              className={`shrink-0 flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                copied 
+                  ? 'bg-green-600 text-white shadow-xs' 
+                  : 'bg-white text-gray-800 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copiar Link</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 pt-1">
+            <a
+              href={portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#a38e74] hover:bg-[#8f7b62] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Acessar Portal</span>
+            </a>
+
+            <button
+              onClick={handleDownloadQR}
+              className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs"
+            >
+              <Download className="w-4 h-4 text-gray-500" />
+              <span>Baixar Imagem QR</span>
+            </button>
+
+            <button
+              onClick={handlePrintQR}
+              className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs"
+            >
+              <Printer className="w-4 h-4 text-gray-500" />
+              <span>Imprimir Totem/Placa</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Schedule Configuration Card */}
